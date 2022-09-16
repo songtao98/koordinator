@@ -18,6 +18,7 @@ package util
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -96,4 +97,19 @@ func GetRootCgroupCPUUsageNanoseconds(qosClass corev1.PodQOSClass) (uint64, erro
 	rootCgroupParentDir := GetKubeQosRelativePath(qosClass)
 	statPath := system.GetCgroupFilePath(rootCgroupParentDir, system.CpuacctUsage)
 	return readCPUAcctUsage(statPath)
+}
+
+func GetContainerCPI(podCgroupDir string, c *corev1.ContainerStatus) (float64, error) {
+	// todo: modify function here to get container cgroup file path
+	containerCgroupFilePath, err := GetContainerCgroupCPUAcctUsagePath(podCgroupDir, c)
+	if err != nil {
+		return 0, err
+	}
+	// get file descriptor for cgroup mode perf_event_open
+	f, err := os.OpenFile(containerCgroupFilePath, os.O_RDONLY, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fd := f.Fd()
+	return computeCPIWithHardwareProfiler(int(fd))
 }

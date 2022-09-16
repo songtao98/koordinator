@@ -78,6 +78,7 @@ type MetricCache interface {
 	InsertBECPUResourceMetric(t time.Time, metric *BECPUResourceMetric) error
 	InsertPodThrottledMetrics(t time.Time, metric *PodThrottledMetric) error
 	InsertContainerThrottledMetrics(t time.Time, metric *ContainerThrottledMetric) error
+	InsertContainerCPIMetrics(t time.Time, metric *ContainerCPIMetric) error
 }
 
 type metricCache struct {
@@ -573,6 +574,16 @@ func (m *metricCache) InsertContainerThrottledMetrics(t time.Time, metric *Conta
 		Timestamp:         t,
 	}
 	return m.db.InsertContainerThrottledMetric(dbItem)
+}
+
+func (m *metricCache) InsertContainerCPIMetrics(t time.Time, metric *ContainerCPIMetric) error {
+	dbItem := &containerCPIMetric{
+		ContainerID:  metric.ContainerID,
+		CollectTime:  metric.CollectTime,
+		ContainerCPI: metric.ContainerCPI,
+		Timestamp:    t,
+	}
+	return m.db.InsertContainerCPIMetrics(dbItem)
 }
 
 func (m *metricCache) aggregateGPUUsages(gpuResourceMetricsByTime [][]gpuResourceMetric, aggregateFunc AggregationFunc) ([]GPUMetric, error) {

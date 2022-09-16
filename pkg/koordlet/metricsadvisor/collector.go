@@ -491,3 +491,31 @@ func (c *collector) cleanupContext() {
 	cleanFunc(&c.context.lastContainerCPUThrottled)
 
 }
+
+// todo: implement three collect interference metric function here,
+// notice that necessary utils can be added wherever you want
+func (c *collector) collectContainerCPI(meta *statesinformer.PodMeta) {
+	klog.V(6).Infof("start collectContainerCPI")
+	pod := meta.Pod
+	for i := range pod.Status.ContainerStatuses {
+		containerStat := &pod.Status.ContainerStatuses[i]
+		collectTime := time.Now()
+		cpi, err0 := util.GetContainerCPI(meta.CgroupDir, containerStat)
+		if err0 != nil {
+
+		}
+		containerCpiMetric := &metriccache.ContainerCPIMetric{
+			CollectTime: collectTime,
+			ContainerID: containerStat.ContainerID,
+			ContainerCPI: &metriccache.CPIMetric{
+				CPI: cpi,
+			},
+		}
+		err := c.metricCache.InsertContainerCPIMetrics(collectTime, containerCpiMetric)
+		if err != nil {
+			klog.Warningf("insert container cpi metrics failed, err %v", err)
+		}
+	}
+}
+
+// todo: build tag linux

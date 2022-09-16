@@ -109,6 +109,14 @@ type beCPUResourceMetric struct {
 	Timestamp       time.Time
 }
 
+type containerCPIMetric struct {
+	ID           uint64 `gorm:"primarykey"`
+	CollectTime  time.Time
+	ContainerID  string
+	ContainerCPI *CPIMetric
+	Timestamp    time.Time
+}
+
 type rawRecord struct {
 	RecordType string `gorm:"primarykey"`
 	RecordStr  string

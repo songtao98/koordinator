@@ -17,6 +17,8 @@ limitations under the License.
 package metriccache
 
 import (
+	"time"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/koordinator-sh/koordinator/pkg/util"
@@ -109,3 +111,15 @@ type ContainerThrottledQueryResult struct {
 	QueryResult
 	Metric *ContainerThrottledMetric
 }
+
+type CPIMetric struct {
+	CPI float64
+}
+
+type ContainerCPIMetric struct {
+	CollectTime  time.Time
+	ContainerID  string
+	ContainerCPI *CPIMetric
+}
+
+// todo: maybe define high level metric api
