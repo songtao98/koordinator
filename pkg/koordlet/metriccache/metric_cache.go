@@ -78,6 +78,7 @@ type MetricCache interface {
 	InsertBECPUResourceMetric(t time.Time, metric *BECPUResourceMetric) error
 	InsertPodThrottledMetrics(t time.Time, metric *PodThrottledMetric) error
 	InsertContainerThrottledMetrics(t time.Time, metric *ContainerThrottledMetric) error
+	InsertPodCPIMetrics(t time.Time, metric *PodCPIMetric) error
 	InsertContainerCPIMetrics(t time.Time, metric *ContainerCPIMetric) error
 }
 
@@ -574,6 +575,16 @@ func (m *metricCache) InsertContainerThrottledMetrics(t time.Time, metric *Conta
 		Timestamp:         t,
 	}
 	return m.db.InsertContainerThrottledMetric(dbItem)
+}
+
+func (m *metricCache) InsertPodCPIMetrics(t time.Time, metric *PodCPIMetric) error {
+	dbItem := &podCPIMetric{
+		CollectTime: metric.CollectTime,
+		PodUID:      metric.PodUID,
+		PodCPI:      metric.PodCPI,
+		Timestamp:   t,
+	}
+	return m.db.InsertPodCPIMetric(dbItem)
 }
 
 func (m *metricCache) InsertContainerCPIMetrics(t time.Time, metric *ContainerCPIMetric) error {

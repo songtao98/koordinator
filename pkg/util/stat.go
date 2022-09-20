@@ -18,13 +18,13 @@ package util
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 
 	"github.com/koordinator-sh/koordinator/pkg/util/system"
 )
@@ -99,17 +99,53 @@ func GetRootCgroupCPUUsageNanoseconds(qosClass corev1.PodQOSClass) (uint64, erro
 	return readCPUAcctUsage(statPath)
 }
 
+func GetPodCPI(podCgroupDir string, pod *corev1.Pod) (float64, error) {
+	var totalCycles, totalInstructions uint64
+
+	for i := range pod.Status.ContainerStatuses {
+		containerStat := &pod.Status.ContainerStatuses[i]
+		containerCgroupFilePath, err := GetContainerCgroupPathWithKube(podCgroupDir, containerStat)
+		if err != nil {
+			klog.Fatal(err)
+			continue
+		}
+		f, err := os.OpenFile(containerCgroupFilePath, os.O_RDONLY, 0755)
+		if err != nil {
+			klog.Fatal(err)
+		}
+		fd := f.Fd()
+		cycles, instructions, err := getContainerInstructionsAndCycles(int(fd))
+		if err != nil {
+			klog.Fatal(err)
+		}
+		totalCycles += cycles
+		totalInstructions += instructions
+	}
+	if totalInstructions == 0 {
+		return float64(0), fmt.Errorf("get 0 instructions, cannot compute CPI in this time window")
+	}
+
+	CPI := float64(totalCycles) / float64(totalInstructions)
+	klog.V(5).Infof("%d instructions, %d CPU cycles: %f CPI", totalInstructions, totalCycles, CPI)
+	return CPI, nil
+}
+
 func GetContainerCPI(podCgroupDir string, c *corev1.ContainerStatus) (float64, error) {
-	// todo: modify function here to get container cgroup file path
-	containerCgroupFilePath, err := GetContainerCgroupCPUAcctUsagePath(podCgroupDir, c)
+	containerCgroupFilePath, err := GetContainerCgroupPathWithKube(podCgroupDir, c)
 	if err != nil {
 		return 0, err
 	}
 	// get file descriptor for cgroup mode perf_event_open
 	f, err := os.OpenFile(containerCgroupFilePath, os.O_RDONLY, 0755)
 	if err != nil {
-		log.Fatal(err)
+		klog.Fatal(err)
 	}
 	fd := f.Fd()
-	return computeCPIWithHardwareProfiler(int(fd))
+	cycles, instructions, err := getContainerInstructionsAndCycles(int(fd))
+	if err != nil {
+		klog.Fatal(err)
+	}
+	CPI := float64(cycles) / float64(instructions)
+	klog.V(5).Infof("%d instructions, %d CPU cycles: %f CPI", instructions, cycles, CPI)
+	return CPI, nil
 }

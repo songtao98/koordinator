@@ -122,4 +122,16 @@ type ContainerCPIMetric struct {
 	ContainerCPI *CPIMetric
 }
 
-// todo: maybe define high level metric api
+type PodCPIMetric struct {
+	CollectTime time.Time
+	PodUID      string
+	PodCPI      *CPIMetric
+}
+
+// InterferenceDetectMetric todo: define unified metrics api for interference detection
+type InterferenceDetectMetric struct {
+	MetricName  string
+	CollectTime time.Time
+	SourceID    string
+	MetricValue interface{}
+}

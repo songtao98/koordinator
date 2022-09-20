@@ -494,6 +494,47 @@ func (c *collector) cleanupContext() {
 
 // todo: implement three collect interference metric function here,
 // notice that necessary utils can be added wherever you want
+func (c *collector) collectPodCPI() {
+	klog.V(6).Info("start collectPodCPI")
+	podMetas := c.statesInformer.GetAllPods()
+	for _, meta := range podMetas {
+		pod := meta.Pod
+		uid := string(pod.UID) // types.UID
+		collectTime := time.Now()
+		podCPI, err0 := util.GetPodCPI(meta.CgroupDir, pod)
+
+		if err0 != nil {
+			// higher verbosity for probably non-running pods
+			if pod.Status.Phase != corev1.PodRunning && pod.Status.Phase != corev1.PodPending {
+				klog.V(6).Infof("failed to collect non-running pod usage for %s/%s, CPU err: %s", pod.Namespace, pod.Name, err0)
+			} else {
+				klog.Warningf("failed to collect pod usage for %s/%s, CPU err: %s",
+					pod.Namespace, pod.Name, err0)
+			}
+			continue
+		}
+
+		podCPIMetric := metriccache.PodCPIMetric{
+			CollectTime: collectTime,
+			PodUID:      uid,
+			PodCPI: &metriccache.CPIMetric{
+				CPI: podCPI,
+			},
+		}
+
+		klog.V(6).Infof("collect pod %s/%s, uid %s finished, metric %+v",
+			meta.Pod.Namespace, meta.Pod.Name, meta.Pod.UID, podCPIMetric)
+
+		if err := c.metricCache.InsertPodCPIMetrics(collectTime, &podCPIMetric); err != nil {
+			klog.Errorf("insert pod %s/%s, uid %s cpi metric failed, metric %v, err %v",
+				pod.Namespace, pod.Name, uid, podCPIMetric, err)
+		}
+		c.collectContainerCPI(meta)
+	}
+
+	klog.Infof("collectPodCPI finished, pod num %d", len(podMetas))
+}
+
 func (c *collector) collectContainerCPI(meta *statesinformer.PodMeta) {
 	klog.V(6).Infof("start collectContainerCPI")
 	pod := meta.Pod
@@ -502,7 +543,8 @@ func (c *collector) collectContainerCPI(meta *statesinformer.PodMeta) {
 		collectTime := time.Now()
 		cpi, err0 := util.GetContainerCPI(meta.CgroupDir, containerStat)
 		if err0 != nil {
-
+			klog.Fatal(err0)
+			continue
 		}
 		containerCpiMetric := &metriccache.ContainerCPIMetric{
 			CollectTime: collectTime,
@@ -516,6 +558,8 @@ func (c *collector) collectContainerCPI(meta *statesinformer.PodMeta) {
 			klog.Warningf("insert container cpi metrics failed, err %v", err)
 		}
 	}
+	klog.V(5).Infof("collectContainerCPI for pod %s/%s finished, container num %d",
+		pod.Namespace, pod.Name, len(pod.Status.ContainerStatuses))
 }
 
-// todo: build tag linux
+// todo: try to make this collector linux specific, e.g., by build tag linux

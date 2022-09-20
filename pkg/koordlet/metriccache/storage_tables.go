@@ -109,10 +109,18 @@ type beCPUResourceMetric struct {
 	Timestamp       time.Time
 }
 
+type podCPIMetric struct {
+	ID          uint64 `gorm:"primarykey"`
+	PodUID      string `gorm:"index:idx_pod_cpi_uid"`
+	CollectTime time.Time
+	PodCPI      *CPIMetric
+	Timestamp   time.Time
+}
+
 type containerCPIMetric struct {
 	ID           uint64 `gorm:"primarykey"`
+	ContainerID  string `gorm:"index:idx_container_cpi_uid"`
 	CollectTime  time.Time
-	ContainerID  string
 	ContainerCPI *CPIMetric
 	Timestamp    time.Time
 }

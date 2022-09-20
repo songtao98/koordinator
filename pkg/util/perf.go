@@ -1,3 +1,6 @@
+//go:build linux
+// +build linux
+
 /*
 Copyright 2022 The Koordinator Authors.
 
@@ -17,10 +20,10 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
-	"log"
+	"time"
 
 	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 
 	"github.com/hodgesds/perf-utils"
 )
@@ -29,37 +32,32 @@ const (
 	AnyCPU = -1
 )
 
-func computeCPIWithHardwareProfiler(cgroupFd int) (float64, error) {
+func getContainerInstructionsAndCycles(cgroupFd int) (cycles, instructions uint64, err error) {
 	hwProfiler, err := perf.NewHardwareProfiler(cgroupFd, AnyCPU, perf.AllHardwareProfilers, unix.PERF_FLAG_PID_CGROUP)
 	if err != nil && !hwProfiler.HasProfilers() {
-		log.Fatal(err)
+		klog.Fatal(err)
 	}
 	defer func() {
 		if err := hwProfiler.Close(); err != nil {
-			log.Fatal(err)
+			klog.Fatal(err)
 		}
 	}()
 
 	if err := hwProfiler.Start(); err != nil {
-		log.Fatal(err)
+		klog.Fatal(err)
+	}
+
+	<-time.After(10 * time.Second)
+	if err := hwProfiler.Stop(); err != nil {
+		klog.Fatal(err)
 	}
 
 	profile := &perf.HardwareProfile{}
 	err = hwProfiler.Profile(profile)
 	if err != nil {
-		log.Fatal(err)
+		klog.Fatal(err)
 	}
-	cycles := profile.RefCPUCycles
-	instructions := profile.Instructions
-	// todo: maybe some other handle methods
-	if *instructions == 0 {
-		log.Fatal("get 0 instructions, cannot compute CPI in this time window")
-		return float64(0), err
-	}
-	CPI := float64(*cycles) / float64(*instructions)
-	fmt.Printf("%d instructions, %d CPU cycles: %f CPI", instructions, cycles, CPI)
-	if err := hwProfiler.Stop(); err != nil {
-		log.Fatal(err)
-	}
-	return CPI, nil
+	cycles = *profile.RefCPUCycles
+	instructions = *profile.Instructions
+	return cycles, instructions, nil
 }

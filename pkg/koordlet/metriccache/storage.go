@@ -86,6 +86,10 @@ func (s *storage) InsertContainerThrottledMetric(m *containerThrottledMetric) er
 	return s.db.Create(m).Error
 }
 
+func (s *storage) InsertPodCPIMetric(m *podCPIMetric) error {
+	return s.db.Create(m).Error
+}
+
 func (s *storage) InsertContainerCPIMetrics(m *containerCPIMetric) error {
 	return s.db.Create(m).Error
 }
