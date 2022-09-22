@@ -1,6 +1,3 @@
-//go:build linux
-// +build linux
-
 /*
 Copyright 2022 The Koordinator Authors.
 
@@ -32,7 +29,7 @@ const (
 	AnyCPU = -1
 )
 
-func getContainerInstructionsAndCycles(cgroupFd int) (cycles, instructions uint64, err error) {
+func getContainerCyclesAndInstructions(cgroupFd int) (cycles, instructions uint64, err error) {
 	hwProfiler, err := perf.NewHardwareProfiler(cgroupFd, AnyCPU, perf.AllHardwareProfilers, unix.PERF_FLAG_PID_CGROUP)
 	if err != nil && !hwProfiler.HasProfilers() {
 		klog.Fatal(err)

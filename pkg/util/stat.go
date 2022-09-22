@@ -114,7 +114,7 @@ func GetPodCPI(podCgroupDir string, pod *corev1.Pod) (float64, error) {
 			klog.Fatal(err)
 		}
 		fd := f.Fd()
-		cycles, instructions, err := getContainerInstructionsAndCycles(int(fd))
+		cycles, instructions, err := getContainerCyclesAndInstructions(int(fd))
 		if err != nil {
 			klog.Fatal(err)
 		}
@@ -130,10 +130,10 @@ func GetPodCPI(podCgroupDir string, pod *corev1.Pod) (float64, error) {
 	return CPI, nil
 }
 
-func GetContainerCPI(podCgroupDir string, c *corev1.ContainerStatus) (float64, error) {
+func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerStatus) (uint64, uint64, error) {
 	containerCgroupFilePath, err := GetContainerCgroupPathWithKube(podCgroupDir, c)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	// get file descriptor for cgroup mode perf_event_open
 	f, err := os.OpenFile(containerCgroupFilePath, os.O_RDONLY, 0755)
@@ -141,11 +141,10 @@ func GetContainerCPI(podCgroupDir string, c *corev1.ContainerStatus) (float64, e
 		klog.Fatal(err)
 	}
 	fd := f.Fd()
-	cycles, instructions, err := getContainerInstructionsAndCycles(int(fd))
+	cycles, instructions, err := getContainerCyclesAndInstructions(int(fd))
 	if err != nil {
 		klog.Fatal(err)
 	}
-	CPI := float64(cycles) / float64(instructions)
-	klog.V(5).Infof("%d instructions, %d CPU cycles: %f CPI", instructions, cycles, CPI)
-	return CPI, nil
+	klog.V(5).Infof("%d instructions, %d CPU cycles", instructions, cycles)
+	return cycles, instructions, nil
 }

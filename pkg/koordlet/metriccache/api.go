@@ -17,8 +17,6 @@ limitations under the License.
 package metriccache
 
 import (
-	"time"
-
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/koordinator-sh/koordinator/pkg/util"
@@ -113,25 +111,17 @@ type ContainerThrottledQueryResult struct {
 }
 
 type CPIMetric struct {
-	CPI float64
+	Cycles       uint64
+	Instructions uint64
 }
 
-type ContainerCPIMetric struct {
-	CollectTime  time.Time
-	ContainerID  string
-	ContainerCPI *CPIMetric
-}
-
-type PodCPIMetric struct {
-	CollectTime time.Time
-	PodUID      string
-	PodCPI      *CPIMetric
-}
-
-// InterferenceDetectMetric todo: define unified metrics api for interference detection
-type InterferenceDetectMetric struct {
-	MetricName  string
-	CollectTime time.Time
-	SourceID    string
+type InterferenceMetric struct {
+	MetricName  InterferenceMetricName
+	ObjectID    string
 	MetricValue interface{}
+}
+
+type InterferenceQueryResult struct {
+	QueryResult
+	Metric *InterferenceMetric
 }

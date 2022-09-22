@@ -38,6 +38,13 @@ const (
 	AggregationTypeCount AggregationType = "count"
 )
 
+type InterferenceMetricName string
+
+const (
+	MetricNameContainerCPI InterferenceMetricName = "ContainerCPI"
+	MetricNamePodCPI       InterferenceMetricName = "PodCPI"
+)
+
 type QueryParam struct {
 	Aggregate AggregationType
 	Start     *time.Time
@@ -71,6 +78,7 @@ type MetricCache interface {
 	GetBECPUResourceMetric(param *QueryParam) BECPUResourceQueryResult
 	GetPodThrottledMetric(podUID *string, param *QueryParam) PodThrottledQueryResult
 	GetContainerThrottledMetric(containerID *string, param *QueryParam) ContainerThrottledQueryResult
+	GetInterferenceMetric(metricName InterferenceMetricName, objectID *string, param *QueryParam) InterferenceQueryResult
 	InsertNodeResourceMetric(t time.Time, nodeResUsed *NodeResourceMetric) error
 	InsertPodResourceMetric(t time.Time, podResUsed *PodResourceMetric) error
 	InsertContainerResourceMetric(t time.Time, containerResUsed *ContainerResourceMetric) error
@@ -78,8 +86,7 @@ type MetricCache interface {
 	InsertBECPUResourceMetric(t time.Time, metric *BECPUResourceMetric) error
 	InsertPodThrottledMetrics(t time.Time, metric *PodThrottledMetric) error
 	InsertContainerThrottledMetrics(t time.Time, metric *ContainerThrottledMetric) error
-	InsertPodCPIMetrics(t time.Time, metric *PodCPIMetric) error
-	InsertContainerCPIMetrics(t time.Time, metric *ContainerCPIMetric) error
+	InsertInterferenceMetrics(t time.Time, metric *InterferenceMetric) error
 }
 
 type metricCache struct {
@@ -468,6 +475,25 @@ func (m *metricCache) GetContainerThrottledMetric(containerID *string, param *Qu
 	return result
 }
 
+func (m *metricCache) GetInterferenceMetric(metricName InterferenceMetricName, objectID *string, param *QueryParam) InterferenceQueryResult {
+	result := InterferenceQueryResult{}
+	if param == nil || param.Start == nil || param.End == nil {
+		result.Error = fmt.Errorf("GetInterferenceMetric %v query parameters are illegal %v", objectID, param)
+		return result
+	}
+	metrics, err := m.convertAndGetInterferenceMetric(metricName, objectID, param.Start, param.End)
+	if err != nil {
+		result.Error = fmt.Errorf("GetInterferenceMetric %v of %v failed, query params %v, error %v", metricName, objectID, param, err)
+		return result
+	}
+	result.Metric = &InterferenceMetric{
+		MetricName:  metricName,
+		ObjectID:    *objectID,
+		MetricValue: metrics,
+	}
+	return result
+}
+
 func (m *metricCache) InsertNodeResourceMetric(t time.Time, nodeResUsed *NodeResourceMetric) error {
 	gpuUsages := make([]gpuResourceMetric, len(nodeResUsed.GPUs))
 	for idx, usage := range nodeResUsed.GPUs {
@@ -577,24 +603,8 @@ func (m *metricCache) InsertContainerThrottledMetrics(t time.Time, metric *Conta
 	return m.db.InsertContainerThrottledMetric(dbItem)
 }
 
-func (m *metricCache) InsertPodCPIMetrics(t time.Time, metric *PodCPIMetric) error {
-	dbItem := &podCPIMetric{
-		CollectTime: metric.CollectTime,
-		PodUID:      metric.PodUID,
-		PodCPI:      metric.PodCPI,
-		Timestamp:   t,
-	}
-	return m.db.InsertPodCPIMetric(dbItem)
-}
-
-func (m *metricCache) InsertContainerCPIMetrics(t time.Time, metric *ContainerCPIMetric) error {
-	dbItem := &containerCPIMetric{
-		ContainerID:  metric.ContainerID,
-		CollectTime:  metric.CollectTime,
-		ContainerCPI: metric.ContainerCPI,
-		Timestamp:    t,
-	}
-	return m.db.InsertContainerCPIMetrics(dbItem)
+func (m *metricCache) InsertInterferenceMetrics(t time.Time, metric *InterferenceMetric) error {
+	return m.convertAndInsertInterferenceMetric(t, metric)
 }
 
 func (m *metricCache) aggregateGPUUsages(gpuResourceMetricsByTime [][]gpuResourceMetric, aggregateFunc AggregationFunc) ([]GPUMetric, error) {
@@ -685,4 +695,27 @@ func getAggregateFunc(aggregationType AggregationType) AggregationFunc {
 func count(metrics interface{}) (float64, error) {
 	aggregateFunc := getAggregateFunc(AggregationTypeCount)
 	return aggregateFunc(metrics, AggregateParam{})
+}
+
+func (m *metricCache) convertAndInsertInterferenceMetric(t time.Time, metric *InterferenceMetric) error {
+	switch metric.MetricName {
+	case MetricNameContainerCPI:
+		dbItem := &containerCPIMetric{
+			ContainerID:  metric.ObjectID,
+			ContainerCPI: metric.MetricValue.(*CPIMetric),
+			Timestamp:    t,
+		}
+		return m.db.InsertContainerCPIMetric(dbItem)
+	default:
+		return fmt.Errorf("get unknown metric name")
+	}
+}
+
+func (m *metricCache) convertAndGetInterferenceMetric(metricName InterferenceMetricName, objectID *string, start, end *time.Time) (interface{}, error) {
+	switch metricName {
+	case MetricNameContainerCPI:
+		return m.db.GetContainerCPIMetric(objectID, start, end)
+	default:
+		return nil, fmt.Errorf("get unknown metric name")
+	}
 }
