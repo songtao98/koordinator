@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+// todo: add readme
+package perf
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hodgesds/perf-utils"
@@ -65,7 +63,7 @@ func (c *perfCollector) startAndCollect() (result collectResult, err error) {
 			return
 		}
 	}
-	// todo: does software metrics collect fits the 10 seconds ticker logic? notice that this may leads to different function structure
+	// todo: the 10 seconds is configurable
 	timer := time.NewTicker(10 * time.Second)
 	defer timer.Stop()
 
@@ -76,7 +74,7 @@ func (c *perfCollector) startAndCollect() (result collectResult, err error) {
 			// todo: c.swProfile, etc.
 			profile, err := c.hwProfileOnSingleCPU(cpu)
 			if err != nil {
-				continue
+				return result, err
 			}
 			// skip not counted cases
 			if profile.RefCPUCycles != nil {
@@ -104,8 +102,8 @@ func (c *perfCollector) hwProfileOnSingleCPU(cpu int) (*perf.HardwareProfile, er
 	return profile, nil
 }
 
-// todo: call collect() to get all metrics at the same time instead of put it inside getContainerCyclesAndInstructions
-func getContainerCyclesAndInstructions(cgroupFd int, cpus []int) (uint64, uint64, error) {
+// todo: call collect() to get all metrics at the same time instead of put it inside GetContainerCyclesAndInstructions
+func GetContainerCyclesAndInstructions(cgroupFd int, cpus []int) (uint64, uint64, error) {
 	collector, err := NewPerfCollector(cgroupFd, cpus)
 	if err != nil {
 		return 0, 0, err
@@ -115,49 +113,4 @@ func getContainerCyclesAndInstructions(cgroupFd int, cpus []int) (uint64, uint64
 		return 0, 0, err
 	}
 	return result.instructions, result.cycles, nil
-}
-
-// perfCPUFlagToCPUs returns a set of CPUs for the perf collectors to monitor.
-func perfCPUFlagToCPUs(cpuFlag string) ([]int, error) {
-	var err error
-	cpus := []int{}
-	for _, subset := range strings.Split(cpuFlag, ",") {
-		// First parse a single CPU.
-		if !strings.Contains(subset, "-") {
-			cpu, err := strconv.Atoi(subset)
-			if err != nil {
-				return nil, err
-			}
-			cpus = append(cpus, cpu)
-			continue
-		}
-
-		stride := 1
-		// Handle strides, ie 1-10:5 should yield 1,5,10
-		strideSet := strings.Split(subset, ":")
-		if len(strideSet) == 2 {
-			stride, err = strconv.Atoi(strideSet[1])
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		rangeSet := strings.Split(strideSet[0], "-")
-		if len(rangeSet) != 2 {
-			return nil, fmt.Errorf("invalid flag value %q", cpuFlag)
-		}
-		start, err := strconv.Atoi(rangeSet[0])
-		if err != nil {
-			return nil, err
-		}
-		end, err := strconv.Atoi(rangeSet[1])
-		if err != nil {
-			return nil, err
-		}
-		for i := start; i <= end; i += stride {
-			cpus = append(cpus, i)
-		}
-	}
-
-	return cpus, nil
 }

@@ -481,6 +481,7 @@ func (m *metricCache) GetInterferenceMetric(metricName InterferenceMetricName, o
 		result.Error = fmt.Errorf("GetInterferenceMetric %v query parameters are illegal %v", objectID, param)
 		return result
 	}
+	// todo: get unified metric all here thus need to add aggregate function to convertAndGetInterferenceMetric()
 	metrics, err := m.convertAndGetInterferenceMetric(metricName, objectID, param.Start, param.End)
 	if err != nil {
 		result.Error = fmt.Errorf("GetInterferenceMetric %v of %v failed, query params %v, error %v", metricName, objectID, param, err)
@@ -673,6 +674,9 @@ func (m *metricCache) recycleDB() {
 	if err := m.db.DeleteContainerThrottledMetric(&oldTime, &expiredTime); err != nil {
 		klog.Warningf("DeleteContainerThrottledMetric failed during recycle, error %v", err)
 	}
+	if err := m.db.DeleteContainerCPIMetric(&oldTime, &expiredTime); err != nil {
+		klog.Warningf("DeleteContainerCPIMetric failed during recycle, error %v", err)
+	}
 	// raw records do not need to cleanup
 	klog.Infof("expired metric data before %v has been recycled", expiredTime)
 }
@@ -697,12 +701,18 @@ func count(metrics interface{}) (float64, error) {
 	return aggregateFunc(metrics, AggregateParam{})
 }
 
+type CPIMetric struct {
+	Cycles       uint64
+	Instructions uint64
+}
+
 func (m *metricCache) convertAndInsertInterferenceMetric(t time.Time, metric *InterferenceMetric) error {
 	switch metric.MetricName {
 	case MetricNameContainerCPI:
 		dbItem := &containerCPIMetric{
 			ContainerID:  metric.ObjectID,
-			ContainerCPI: metric.MetricValue.(*CPIMetric),
+			Cycles:       metric.MetricValue.(*CPIMetric).Cycles,
+			Instructions: metric.MetricValue.(*CPIMetric).Instructions,
 			Timestamp:    t,
 		}
 		return m.db.InsertContainerCPIMetric(dbItem)

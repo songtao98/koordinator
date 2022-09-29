@@ -20,6 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/koordinator-sh/koordinator/pkg/koordlet/statesinformer"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
@@ -27,11 +29,19 @@ import (
 	"github.com/koordinator-sh/koordinator/pkg/util"
 )
 
-type interferenceCollector struct {
-	collector
+type performanceCollector struct {
+	statesInformer statesinformer.StatesInformer
+	metricCache    metriccache.MetricCache
 }
 
-func (c *interferenceCollector) collectContainerCPI() {
+func NewPerformanceCollector(statesInformer statesinformer.StatesInformer, metricCache metriccache.MetricCache) *performanceCollector {
+	return &performanceCollector{
+		statesInformer: statesInformer,
+		metricCache:    metricCache,
+	}
+}
+
+func (c *performanceCollector) collectContainerCPI() {
 	klog.V(6).Infof("start collectContainerCPI")
 	timeWindow := time.Now()
 	containerStatusesMap := map[*corev1.ContainerStatus]string{}
@@ -56,7 +66,7 @@ func (c *interferenceCollector) collectContainerCPI() {
 		timeWindow, time.Now(), len(containerStatusesMap))
 }
 
-func (c *interferenceCollector) collectSingleContainerCPI(podParentCgroupDir string, containerStatus *corev1.ContainerStatus) {
+func (c *performanceCollector) collectSingleContainerCPI(podParentCgroupDir string, containerStatus *corev1.ContainerStatus) {
 	collectTime := time.Now()
 	cycles, instructions, err := util.GetContainerCyclesAndInstructions(podParentCgroupDir, containerStatus)
 	if err != nil {

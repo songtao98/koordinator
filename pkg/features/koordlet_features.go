@@ -53,8 +53,8 @@ const (
 	// Only Nvidia GPUs are supported as of v0.6.
 	Accelerators featuregate.Feature = "Accelerators"
 
-	// InterferenceDetect enables interference detection feature of koordlet.
-	InterferenceDetect featuregate.Feature = "InterferenceDetect"
+	// PerformanceCollector enables interference detection feature of koordlet.
+	PerformanceCollector featuregate.Feature = "PerformanceCollector"
 )
 
 func init() {
@@ -76,6 +76,6 @@ var (
 		RdtResctrl:             {Default: false, PreRelease: featuregate.Alpha},
 		CgroupReconcile:        {Default: false, PreRelease: featuregate.Alpha},
 		Accelerators:           {Default: false, PreRelease: featuregate.Alpha},
-		InterferenceDetect:     {Default: false, PreRelease: featuregate.Alpha},
+		PerformanceCollector:   {Default: false, PreRelease: featuregate.Alpha},
 	}
 )

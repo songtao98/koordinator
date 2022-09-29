@@ -157,9 +157,9 @@ func (c *collector) Run(stopCh <-chan struct{}) error {
 			os.Exit(1)
 			return
 		}
-		ic := &interferenceCollector{}
+		ic := NewPerformanceCollector(c.statesInformer, c.metricCache)
 		ic.collectContainerCPI()
-	}, []featuregate.Feature{features.InterferenceDetect}, c.config.CollectInterferenceIntervalSeconds, stopCh)
+	}, []featuregate.Feature{features.PerformanceCollector}, c.config.CollectInterferenceIntervalSeconds, stopCh)
 
 	go wait.Until(c.cleanupContext, cleanupInterval, stopCh)
 

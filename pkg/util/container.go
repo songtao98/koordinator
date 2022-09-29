@@ -57,14 +57,6 @@ func GetContainerCgroupCPUProcsPath(podParentDir string, c *corev1.ContainerStat
 	return system.GetCgroupFilePath(containerPath, system.CPUProcs), nil
 }
 
-func GetContainerCgroupCPUSetPath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
-	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
-	if err != nil {
-		return "", err
-	}
-	return system.GetCgroupFilePath(containerPath, system.CPUSet), nil
-}
-
 func GetContainerCgroupPerfPath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
 	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
 	if err != nil {

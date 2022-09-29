@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/koordinator-sh/koordinator/pkg/util/perf"
+
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -103,9 +105,9 @@ func GetRootCgroupCPUUsageNanoseconds(qosClass corev1.PodQOSClass) (uint64, erro
 
 // GetContainerCyclesAndInstructions returns the container's cycels and instructions
 func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerStatus) (uint64, uint64, error) {
-	cpus, err := getContainerCpus(podCgroupDir, c)
-	if err != nil {
-		return 0, 0, err
+	cpus := make([]int, runtime.NumCPU())
+	for i := range cpus {
+		cpus[i] = i
 	}
 	// get file descriptor for cgroup mode perf_event_open
 	containerCgroupFd, err := getContainerCgroupFd(podCgroupDir, c)
@@ -113,32 +115,11 @@ func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerS
 		return 0, 0, err
 	}
 	defer unix.Close(containerCgroupFd)
-	cycles, instructions, err := getContainerCyclesAndInstructions(containerCgroupFd, cpus)
+	cycles, instructions, err := perf.GetContainerCyclesAndInstructions(containerCgroupFd, cpus)
 	if err != nil {
 		return 0, 0, err
 	}
 	return cycles, instructions, nil
-}
-
-func getContainerCpus(podCgroupDir string, c *corev1.ContainerStatus) ([]int, error) {
-	cpuSetPath, err := GetContainerCgroupCPUSetPath(podCgroupDir, c)
-	if err != nil {
-		return nil, err
-	}
-	cpuFlag, err := os.ReadFile(cpuSetPath)
-	if err != nil {
-		cpus := make([]int, runtime.NumCPU())
-		for i := range cpus {
-			cpus[i] = i
-		}
-		return cpus, nil
-	}
-	cpuFlagString := strings.TrimSuffix(string(cpuFlag), "\n")
-	cpus, err := perfCPUFlagToCPUs(cpuFlagString)
-	if err != nil {
-		return nil, err
-	}
-	return cpus, nil
 }
 
 func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, error) {
@@ -148,12 +129,12 @@ func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, 
 	}
 	f, err := os.OpenFile(containerCgroupFilePath, os.O_RDONLY, os.ModeDir)
 	if err != nil {
-		// some os doesn't support openat2() while some container os cannot open fd with os.OpenFile()
-		return getContainerCgroupFdWithOpenat2(containerCgroupFilePath)
+		return 0, err
 	}
 	return int(f.Fd()), nil
 }
 
+// todo: may delete this after test
 func getContainerCgroupFdWithOpenat2(containerDir string) (int, error) {
 	cgroupfsPerfDir := path.Join(system.Conf.CgroupRootDir, "perf_event/")
 	perfFd, err := unix.Openat2(-1, cgroupfsPerfDir, &unix.OpenHow{
