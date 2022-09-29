@@ -109,10 +109,33 @@ type beCPUResourceMetric struct {
 	Timestamp       time.Time
 }
 
+type CPIMetric struct {
+	Cycles       uint64
+	Instructions uint64
+}
+
+func (cpi *CPIMetric) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New(fmt.Sprint("Failed to unmarshal JSONB value:", value))
+	}
+	return json.Unmarshal(bytes, cpi)
+}
+
+func (cpi *CPIMetric) Value() (driver.Value, error) {
+	if cpi == nil {
+		return nil, nil
+	}
+	return json.Marshal(cpi)
+}
+
 type containerCPIMetric struct {
-	ID           uint64 `gorm:"primarykey"`
-	ContainerID  string `gorm:"index:idx_container_cpi_uid"`
-	ContainerCPI *CPIMetric
+	ID           uint64     `gorm:"primarykey"`
+	ContainerID  string     `gorm:"index:idx_container_cpi_uid"`
+	ContainerCPI *CPIMetric `gorm:"type:text"`
 	Timestamp    time.Time
 }
 

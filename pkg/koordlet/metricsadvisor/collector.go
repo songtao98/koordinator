@@ -148,7 +148,18 @@ func (c *collector) Run(stopCh <-chan struct{}) error {
 
 	go wait.Until(c.collectNodeCPUInfo, time.Duration(c.config.CollectNodeCPUInfoIntervalSeconds)*time.Second, stopCh)
 
-	util.RunFeature(c.collectContainerCPI, []featuregate.Feature{features.InterferenceDetect}, c.config.CollectInterferenceIntervalSeconds, stopCh)
+	go util.RunFeature(func() {
+		// add sync metaService cache check before collect pod information
+		// because collect function will get all pods.
+		if !cache.WaitForCacheSync(stopCh, c.statesInformer.HasSynced) {
+			klog.Errorf("timed out waiting for meta service caches to sync")
+			// Koordlet exit because of metaService sync failed.
+			os.Exit(1)
+			return
+		}
+		ic := &interferenceCollector{}
+		ic.collectContainerCPI()
+	}, []featuregate.Feature{features.InterferenceDetect}, c.config.CollectInterferenceIntervalSeconds, stopCh)
 
 	go wait.Until(c.cleanupContext, cleanupInterval, stopCh)
 

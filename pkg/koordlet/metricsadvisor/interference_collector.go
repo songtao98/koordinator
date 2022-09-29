@@ -27,10 +27,14 @@ import (
 	"github.com/koordinator-sh/koordinator/pkg/util"
 )
 
-func (c *collector) collectContainerCPI() {
+type interferenceCollector struct {
+	collector
+}
+
+func (c *interferenceCollector) collectContainerCPI() {
 	klog.V(6).Infof("start collectContainerCPI")
 	timeWindow := time.Now()
-	var containerStatusesMap map[*corev1.ContainerStatus]string
+	containerStatusesMap := map[*corev1.ContainerStatus]string{}
 	podMetas := c.statesInformer.GetAllPods()
 	for _, meta := range podMetas {
 		pod := meta.Pod
@@ -42,19 +46,22 @@ func (c *collector) collectContainerCPI() {
 	var wg sync.WaitGroup
 	wg.Add(len(containerStatusesMap))
 	for containerStatus, podParentCgroupDir := range containerStatusesMap {
-		go c.collectSingleContainerCPI(wg, podParentCgroupDir, containerStatus)
+		go func(status *corev1.ContainerStatus, parent string) {
+			defer wg.Done()
+			c.collectSingleContainerCPI(parent, status)
+		}(containerStatus, podParentCgroupDir)
 	}
 	wg.Wait()
 	klog.V(5).Infof("collectContainerCPI for time window %s finished at %s, container num %d",
 		timeWindow, time.Now(), len(containerStatusesMap))
 }
 
-func (c *collector) collectSingleContainerCPI(wg sync.WaitGroup, podParentCgroupDir string, containerStatus *corev1.ContainerStatus) {
-	defer wg.Done()
+func (c *interferenceCollector) collectSingleContainerCPI(podParentCgroupDir string, containerStatus *corev1.ContainerStatus) {
 	collectTime := time.Now()
 	cycles, instructions, err := util.GetContainerCyclesAndInstructions(podParentCgroupDir, containerStatus)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Errorf("collect container %s cpi err: %v", containerStatus.Name, err)
+		return
 	}
 	containerCpiMetric := &metriccache.InterferenceMetric{
 		MetricName: metriccache.MetricNameContainerCPI,
@@ -66,7 +73,7 @@ func (c *collector) collectSingleContainerCPI(wg sync.WaitGroup, podParentCgroup
 	}
 	err = c.metricCache.InsertInterferenceMetrics(collectTime, containerCpiMetric)
 	if err != nil {
-		klog.Warningf("insert container cpi metrics failed, err %v", err)
+		klog.Errorf("insert container cpi metrics failed, err %v", err)
 	}
 }
 

@@ -110,11 +110,6 @@ type ContainerThrottledQueryResult struct {
 	Metric *ContainerThrottledMetric
 }
 
-type CPIMetric struct {
-	Cycles       uint64
-	Instructions uint64
-}
-
 type InterferenceMetric struct {
 	MetricName  InterferenceMetricName
 	ObjectID    string
