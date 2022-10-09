@@ -19,12 +19,16 @@ package util
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
+	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
+	"github.com/koordinator-sh/koordinator/pkg/util/perf"
 	"github.com/koordinator-sh/koordinator/pkg/util/system"
 )
 
@@ -78,6 +82,21 @@ func readCPUAcctUsage(usagePath string) (uint64, error) {
 	return r, nil
 }
 
+func readCPUAcctPSI(usagePath string) (metriccache.PSIMetric, error) {
+	result := metriccache.PSIMetric{}
+	v, err := os.ReadFile(usagePath)
+	if err != nil {
+		return result, err
+	}
+
+	// todo: parse PSI content for avg10
+	r, err1 := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
+	if err1 != nil {
+		return result, err1
+	}
+	return result, nil
+}
+
 // GetPodCPUUsage returns the pod's CPU usage in nanosecond
 func GetPodCPUUsageNanoseconds(podCgroupDir string) (uint64, error) {
 	podStatPath := GetPodCgroupCPUAcctProcUsagePath(podCgroupDir)
@@ -96,4 +115,44 @@ func GetRootCgroupCPUUsageNanoseconds(qosClass corev1.PodQOSClass) (uint64, erro
 	rootCgroupParentDir := GetKubeQosRelativePath(qosClass)
 	statPath := system.GetCgroupFilePath(rootCgroupParentDir, system.CpuacctUsage)
 	return readCPUAcctUsage(statPath)
+}
+
+// GetContainerCyclesAndInstructions returns the container's cycels and instructions
+func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerStatus, collectTimeWindow int) (uint64, uint64, error) {
+	cpus := make([]int, runtime.NumCPU())
+	for i := range cpus {
+		cpus[i] = i
+	}
+	// get file descriptor for cgroup mode perf_event_open
+	containerCgroupFd, err := getContainerCgroupFd(podCgroupDir, c)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer unix.Close(containerCgroupFd)
+	cycles, instructions, err := perf.GetContainerCyclesAndInstructions(containerCgroupFd, cpus, collectTimeWindow)
+	if err != nil {
+		return 0, 0, err
+	}
+	return cycles, instructions, nil
+}
+
+func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, error) {
+	containerCgroupFilePath, err := GetContainerCgroupPerfPath(podCgroupDir, c)
+	if err != nil {
+		return 0, err
+	}
+	f, err := os.OpenFile(containerCgroupFilePath, os.O_RDONLY, os.ModeDir)
+	if err != nil {
+		return 0, err
+	}
+	return int(f.Fd()), nil
+}
+
+func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (metriccache.PSIMetric, error) {
+	containerPressurePath, err := GetContainerCgroupCPUAcctUsagePath(podCgroupDir, c)
+	psi, err := readCPUAcctPSI(containerPressurePath)
+	if err != nil {
+		return metriccache.PSIMetric{}, err
+	}
+	return psi, nil
 }

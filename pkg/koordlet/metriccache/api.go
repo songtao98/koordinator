@@ -109,3 +109,14 @@ type ContainerThrottledQueryResult struct {
 	QueryResult
 	Metric *ContainerThrottledMetric
 }
+
+type InterferenceMetric struct {
+	MetricName  InterferenceMetricName
+	ObjectID    string
+	MetricValue interface{}
+}
+
+type InterferenceQueryResult struct {
+	QueryResult
+	Metric *InterferenceMetric
+}
