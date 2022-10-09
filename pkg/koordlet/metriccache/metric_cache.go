@@ -750,8 +750,8 @@ func (m *metricCache) convertAndInsertInterferenceMetric(t time.Time, metric *In
 	case MetricNameContainerCPI:
 		dbItem := &containerCPIMetric{
 			ContainerID:  metric.ObjectID,
-			Cycles:       metric.MetricValue.(*CPIMetric).Cycles,
-			Instructions: metric.MetricValue.(*CPIMetric).Instructions,
+			Cycles:       float64(metric.MetricValue.(*CPIMetric).Cycles),
+			Instructions: float64(metric.MetricValue.(*CPIMetric).Instructions),
 			Timestamp:    t,
 		}
 		return m.db.InsertContainerCPIMetric(dbItem)
