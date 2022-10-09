@@ -117,6 +117,18 @@ type containerCPIMetric struct {
 	Timestamp    time.Time
 }
 
+type containerPSIMetric struct {
+	ID           uint64 `gorm:"primarykey"`
+	ContainerID  string `gorm:"index:idx_container_psi_uid"`
+	SomeCPUAvg10 float64
+	SomeMemAvg10 float64
+	SomeIOAvg10  float64
+	FullCPUAvg10 float64
+	FullMemAvg10 float64
+	FullIOAvg10  float64
+	Timestamp    time.Time
+}
+
 type rawRecord struct {
 	RecordType string `gorm:"primarykey"`
 	RecordStr  string

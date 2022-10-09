@@ -73,6 +73,14 @@ func GetContainerCgroupCPUAcctUsagePath(podParentDir string, c *corev1.Container
 	return system.GetCgroupFilePath(containerPath, system.CpuacctUsage), nil
 }
 
+func GetContainerCgroupCPUAcctPressurePath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
+	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
+	if err != nil {
+		return "", err
+	}
+	return path.Join(system.Conf.CgroupRootDir, "cpuacct/", containerPath), nil
+}
+
 func GetContainerCgroupCPUAcctCPUPressurePath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
 	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
 	if err != nil {

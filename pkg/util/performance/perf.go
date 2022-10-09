@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // todo: add readme
-package perf
+package performance
 
 import (
 	"time"
@@ -29,7 +29,7 @@ type perfCollector struct {
 	cgroupFd          int
 	cpus              []int
 	cpuHwProfilersMap map[int]*perf.HardwareProfiler
-	// todo: cpuSwProfilers map[int]*perf.SoftwareProfiler
+	// todo: cpuSwProfilers map[int]*performance.SoftwareProfiler
 }
 
 func NewPerfCollector(cgroupFd int, cpus []int, collectTimeWindow int) (*perfCollector, error) {

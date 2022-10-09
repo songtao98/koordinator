@@ -91,6 +91,10 @@ func (s *storage) InsertContainerCPIMetric(m *containerCPIMetric) error {
 	return s.db.Create(m).Error
 }
 
+func (s *storage) InsertContainerPSIMetric(m *containerPSIMetric) error {
+	return s.db.Create(m).Error
+}
+
 func (s *storage) GetNodeResourceMetric(start, end *time.Time) ([]nodeResourceMetric, error) {
 	var nodeMetrics []nodeResourceMetric
 	err := s.db.Where("timestamp BETWEEN ? AND ?", start, end).Find(&nodeMetrics).Error

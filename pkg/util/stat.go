@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
-	"github.com/koordinator-sh/koordinator/pkg/util/perf"
+	"github.com/koordinator-sh/koordinator/pkg/util/performance"
 	"github.com/koordinator-sh/koordinator/pkg/util/system"
 )
 
@@ -82,21 +82,6 @@ func readCPUAcctUsage(usagePath string) (uint64, error) {
 	return r, nil
 }
 
-func readCPUAcctPSI(usagePath string) (metriccache.PSIMetric, error) {
-	result := metriccache.PSIMetric{}
-	v, err := os.ReadFile(usagePath)
-	if err != nil {
-		return result, err
-	}
-
-	// todo: parse PSI content for avg10
-	r, err1 := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
-	if err1 != nil {
-		return result, err1
-	}
-	return result, nil
-}
-
 // GetPodCPUUsage returns the pod's CPU usage in nanosecond
 func GetPodCPUUsageNanoseconds(podCgroupDir string) (uint64, error) {
 	podStatPath := GetPodCgroupCPUAcctProcUsagePath(podCgroupDir)
@@ -129,7 +114,7 @@ func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerS
 		return 0, 0, err
 	}
 	defer unix.Close(containerCgroupFd)
-	cycles, instructions, err := perf.GetContainerCyclesAndInstructions(containerCgroupFd, cpus, collectTimeWindow)
+	cycles, instructions, err := performance.GetContainerCyclesAndInstructions(containerCgroupFd, cpus, collectTimeWindow)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -148,11 +133,17 @@ func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, 
 	return int(f.Fd()), nil
 }
 
-func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (metriccache.PSIMetric, error) {
-	containerPressurePath, err := GetContainerCgroupCPUAcctUsagePath(podCgroupDir, c)
-	psi, err := readCPUAcctPSI(containerPressurePath)
+// GetContainerPSI
+// todo: due to different os, pressurePath and pressure file name can be different
+// need to make it configurable
+func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (*metriccache.PSIMetric, error) {
+	containerPressurePath, err := GetContainerCgroupCPUAcctPressurePath(podCgroupDir, c)
 	if err != nil {
-		return metriccache.PSIMetric{}, err
+		return &metriccache.PSIMetric{}, err
+	}
+	psi, err := performance.ReadPSI(containerPressurePath)
+	if err != nil {
+		return &metriccache.PSIMetric{}, err
 	}
 	return psi, nil
 }

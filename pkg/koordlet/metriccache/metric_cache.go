@@ -766,6 +766,18 @@ func (m *metricCache) convertAndInsertInterferenceMetric(t time.Time, metric *In
 			Timestamp:    t,
 		}
 		return m.db.InsertContainerCPIMetric(dbItem)
+	case MetricNameContainerPSI:
+		dbItem := &containerPSIMetric{
+			ContainerID:  metric.ObjectID,
+			SomeCPUAvg10: metric.MetricValue.(*PSIMetric).SomeCPUAvg10,
+			SomeMemAvg10: metric.MetricValue.(*PSIMetric).SomeMemAvg10,
+			SomeIOAvg10:  metric.MetricValue.(*PSIMetric).SomeIOAvg10,
+			FullCPUAvg10: metric.MetricValue.(*PSIMetric).FullCPUAvg10,
+			FullMemAvg10: metric.MetricValue.(*PSIMetric).FullMemAvg10,
+			FullIOAvg10:  metric.MetricValue.(*PSIMetric).FullIOAvg10,
+			Timestamp:    t,
+		}
+		return m.db.InsertContainerPSIMetric(dbItem)
 	default:
 		return fmt.Errorf("get unknown metric name")
 	}
