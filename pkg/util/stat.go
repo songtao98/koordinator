@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
 	"github.com/koordinator-sh/koordinator/pkg/util/perf"
 	"github.com/koordinator-sh/koordinator/pkg/util/system"
 )
@@ -81,6 +82,21 @@ func readCPUAcctUsage(usagePath string) (uint64, error) {
 	return r, nil
 }
 
+func readCPUAcctPSI(usagePath string) (metriccache.PSIMetric, error) {
+	result := metriccache.PSIMetric{}
+	v, err := os.ReadFile(usagePath)
+	if err != nil {
+		return result, err
+	}
+
+	// todo: parse PSI content for avg10
+	r, err1 := strconv.ParseUint(strings.TrimSpace(string(v)), 10, 64)
+	if err1 != nil {
+		return result, err1
+	}
+	return result, nil
+}
+
 // GetPodCPUUsage returns the pod's CPU usage in nanosecond
 func GetPodCPUUsageNanoseconds(podCgroupDir string) (uint64, error) {
 	podStatPath := GetPodCgroupCPUAcctProcUsagePath(podCgroupDir)
@@ -130,4 +146,13 @@ func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, 
 		return 0, err
 	}
 	return int(f.Fd()), nil
+}
+
+func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (metriccache.PSIMetric, error) {
+	containerPressurePath, err := GetContainerCgroupCPUAcctUsagePath(podCgroupDir, c)
+	psi, err := readCPUAcctPSI(containerPressurePath)
+	if err != nil {
+		return metriccache.PSIMetric{}, err
+	}
+	return psi, nil
 }

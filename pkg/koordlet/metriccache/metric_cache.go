@@ -42,6 +42,7 @@ type InterferenceMetricName string
 
 const (
 	MetricNameContainerCPI InterferenceMetricName = "ContainerCPI"
+	MetricNameContainerPSI InterferenceMetricName = "ContainerPSI"
 	MetricNamePodCPI       InterferenceMetricName = "PodCPI"
 )
 
@@ -743,6 +744,16 @@ func count(metrics interface{}) (float64, error) {
 type CPIMetric struct {
 	Cycles       uint64
 	Instructions uint64
+}
+
+type PSIMetric struct {
+	SomeCPUAvg10 float64
+	SomeMemAvg10 float64
+	SomeIOAvg10  float64
+
+	FullCPUAvg10 float64
+	FullMemAvg10 float64
+	FullIOAvg10  float64
 }
 
 func (m *metricCache) convertAndInsertInterferenceMetric(t time.Time, metric *InterferenceMetric) error {
