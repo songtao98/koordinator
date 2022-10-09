@@ -25,14 +25,16 @@ import (
 )
 
 type perfCollector struct {
+	collectTimeWindow int
 	cgroupFd          int
 	cpus              []int
 	cpuHwProfilersMap map[int]*perf.HardwareProfiler
 	// todo: cpuSwProfilers map[int]*perf.SoftwareProfiler
 }
 
-func NewPerfCollector(cgroupFd int, cpus []int) (*perfCollector, error) {
+func NewPerfCollector(cgroupFd int, cpus []int, collectTimeWindow int) (*perfCollector, error) {
 	collector := &perfCollector{
+		collectTimeWindow: collectTimeWindow,
 		cgroupFd:          cgroupFd,
 		cpus:              cpus,
 		cpuHwProfilersMap: map[int]*perf.HardwareProfiler{},
@@ -63,8 +65,7 @@ func (c *perfCollector) startAndCollect() (result collectResult, err error) {
 			return
 		}
 	}
-	// todo: the 10 seconds is configurable
-	timer := time.NewTicker(10 * time.Second)
+	timer := time.NewTicker(time.Duration(c.collectTimeWindow) * time.Second)
 	defer timer.Stop()
 
 	// do profile only once per Run()
@@ -103,8 +104,8 @@ func (c *perfCollector) hwProfileOnSingleCPU(cpu int) (*perf.HardwareProfile, er
 }
 
 // todo: call collect() to get all metrics at the same time instead of put it inside GetContainerCyclesAndInstructions
-func GetContainerCyclesAndInstructions(cgroupFd int, cpus []int) (uint64, uint64, error) {
-	collector, err := NewPerfCollector(cgroupFd, cpus)
+func GetContainerCyclesAndInstructions(cgroupFd int, cpus []int, collectTimeWindow int) (uint64, uint64, error) {
+	collector, err := NewPerfCollector(cgroupFd, cpus, collectTimeWindow)
 	if err != nil {
 		return 0, 0, err
 	}

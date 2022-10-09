@@ -481,18 +481,57 @@ func (m *metricCache) GetInterferenceMetric(metricName InterferenceMetricName, o
 		result.Error = fmt.Errorf("GetInterferenceMetric %v query parameters are illegal %v", objectID, param)
 		return result
 	}
-	// todo: get unified metric all here thus need to add aggregate function to convertAndGetInterferenceMetric()
 	metrics, err := m.convertAndGetInterferenceMetric(metricName, objectID, param.Start, param.End)
 	if err != nil {
 		result.Error = fmt.Errorf("GetInterferenceMetric %v of %v failed, query params %v, error %v", metricName, objectID, param, err)
 		return result
 	}
+
+	aggregateFunc := getAggregateFunc(param.Aggregate)
+	metricValue, err := aggregateInterferenceMetricByName(metricName, metrics, aggregateFunc)
+	if err != nil {
+		result.Error = fmt.Errorf("GetInterferenceMetric %v aggregate failed, metrics %v, error %v",
+			objectID, metrics, err)
+		return result
+	}
+
+	count, err := count(metrics)
+	if err != nil {
+		result.Error = fmt.Errorf("GetInterferenceMetric %v aggregate failed, metrics %v, error %v",
+			objectID, metrics, err)
+		return result
+	}
+
+	result.AggregateInfo = &AggregateInfo{MetricsCount: int64(count)}
 	result.Metric = &InterferenceMetric{
 		MetricName:  metricName,
 		ObjectID:    *objectID,
-		MetricValue: metrics,
+		MetricValue: metricValue,
 	}
 	return result
+}
+
+func aggregateInterferenceMetricByName(metricName InterferenceMetricName, metrics interface{}, aggregateFunc AggregationFunc) (interface{}, error) {
+	switch metricName {
+	case MetricNameContainerCPI:
+		cycles, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "Cycles", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		instructions, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "Instructions", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		metricValue := &CPIMetric{
+			Cycles:       uint64(cycles),
+			Instructions: uint64(instructions),
+		}
+		return metricValue, nil
+	default:
+		return nil, fmt.Errorf("get unknown metric name")
+	}
 }
 
 func (m *metricCache) InsertNodeResourceMetric(t time.Time, nodeResUsed *NodeResourceMetric) error {

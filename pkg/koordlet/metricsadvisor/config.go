@@ -19,16 +19,18 @@ package metricsadvisor
 import "flag"
 
 type Config struct {
-	CollectResUsedIntervalSeconds      int
-	CollectNodeCPUInfoIntervalSeconds  int
-	CollectInterferenceIntervalSeconds int
+	CollectResUsedIntervalSeconds        int
+	CollectNodeCPUInfoIntervalSeconds    int
+	CollectInterferenceIntervalSeconds   int
+	CollectInterferenceTimeWindowSeconds int
 }
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		CollectResUsedIntervalSeconds:      1,
-		CollectNodeCPUInfoIntervalSeconds:  60,
-		CollectInterferenceIntervalSeconds: 60,
+		CollectResUsedIntervalSeconds:        1,
+		CollectNodeCPUInfoIntervalSeconds:    60,
+		CollectInterferenceIntervalSeconds:   60,
+		CollectInterferenceTimeWindowSeconds: 10,
 	}
 }
 
@@ -36,4 +38,5 @@ func (c *Config) InitFlags(fs *flag.FlagSet) {
 	fs.IntVar(&c.CollectResUsedIntervalSeconds, "collect-res-used-interval-seconds", c.CollectResUsedIntervalSeconds, "Collect node/pod resource usage interval by seconds")
 	fs.IntVar(&c.CollectNodeCPUInfoIntervalSeconds, "collect-node-cpu-info-interval-seconds", c.CollectNodeCPUInfoIntervalSeconds, "Collect node cpu info interval by seconds")
 	fs.IntVar(&c.CollectInterferenceIntervalSeconds, "collect-interference-interval-seconds", c.CollectInterferenceIntervalSeconds, "Collect interference interval by seconds")
+	fs.IntVar(&c.CollectInterferenceTimeWindowSeconds, "collect-interference-timewindow-seconds", c.CollectInterferenceTimeWindowSeconds, "Collect interference time window by seconds")
 }
