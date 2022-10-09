@@ -20,24 +20,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/koordinator-sh/koordinator/pkg/koordlet/statesinformer"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
+	"github.com/koordinator-sh/koordinator/pkg/koordlet/statesinformer"
 	"github.com/koordinator-sh/koordinator/pkg/util"
 )
 
 type performanceCollector struct {
-	statesInformer statesinformer.StatesInformer
-	metricCache    metriccache.MetricCache
+	statesInformer    *statesinformer.StatesInformer
+	metricCache       *metriccache.MetricCache
+	collectTimeWindow int
 }
 
-func NewPerformanceCollector(statesInformer statesinformer.StatesInformer, metricCache metriccache.MetricCache) *performanceCollector {
+func NewPerformanceCollector(statesInformer *statesinformer.StatesInformer, metricCache *metriccache.MetricCache, collectTimeWindow int) *performanceCollector {
 	return &performanceCollector{
-		statesInformer: statesInformer,
-		metricCache:    metricCache,
+		statesInformer:    statesInformer,
+		metricCache:       metricCache,
+		collectTimeWindow: collectTimeWindow,
 	}
 }
 
@@ -45,7 +46,7 @@ func (c *performanceCollector) collectContainerCPI() {
 	klog.V(6).Infof("start collectContainerCPI")
 	timeWindow := time.Now()
 	containerStatusesMap := map[*corev1.ContainerStatus]string{}
-	podMetas := c.statesInformer.GetAllPods()
+	podMetas := (*c.statesInformer).GetAllPods()
 	for _, meta := range podMetas {
 		pod := meta.Pod
 		for i := range pod.Status.ContainerStatuses {
@@ -68,7 +69,7 @@ func (c *performanceCollector) collectContainerCPI() {
 
 func (c *performanceCollector) collectSingleContainerCPI(podParentCgroupDir string, containerStatus *corev1.ContainerStatus) {
 	collectTime := time.Now()
-	cycles, instructions, err := util.GetContainerCyclesAndInstructions(podParentCgroupDir, containerStatus)
+	cycles, instructions, err := util.GetContainerCyclesAndInstructions(podParentCgroupDir, containerStatus, c.collectTimeWindow)
 	if err != nil {
 		klog.Errorf("collect container %s cpi err: %v", containerStatus.Name, err)
 		return
@@ -81,7 +82,7 @@ func (c *performanceCollector) collectSingleContainerCPI(podParentCgroupDir stri
 			Instructions: instructions,
 		},
 	}
-	err = c.metricCache.InsertInterferenceMetrics(collectTime, containerCpiMetric)
+	err = (*c.metricCache).InsertInterferenceMetrics(collectTime, containerCpiMetric)
 	if err != nil {
 		klog.Errorf("insert container cpi metrics failed, err %v", err)
 	}

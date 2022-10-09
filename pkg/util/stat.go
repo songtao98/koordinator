@@ -19,17 +19,15 @@ package util
 import (
 	"fmt"
 	"os"
-	"path"
 	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/koordinator-sh/koordinator/pkg/util/perf"
 
 	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/koordinator-sh/koordinator/pkg/util/perf"
 	"github.com/koordinator-sh/koordinator/pkg/util/system"
 )
 
@@ -104,7 +102,7 @@ func GetRootCgroupCPUUsageNanoseconds(qosClass corev1.PodQOSClass) (uint64, erro
 }
 
 // GetContainerCyclesAndInstructions returns the container's cycels and instructions
-func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerStatus) (uint64, uint64, error) {
+func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerStatus, collectTimeWindow int) (uint64, uint64, error) {
 	cpus := make([]int, runtime.NumCPU())
 	for i := range cpus {
 		cpus[i] = i
@@ -115,7 +113,7 @@ func GetContainerCyclesAndInstructions(podCgroupDir string, c *corev1.ContainerS
 		return 0, 0, err
 	}
 	defer unix.Close(containerCgroupFd)
-	cycles, instructions, err := perf.GetContainerCyclesAndInstructions(containerCgroupFd, cpus)
+	cycles, instructions, err := perf.GetContainerCyclesAndInstructions(containerCgroupFd, cpus, collectTimeWindow)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -132,22 +130,4 @@ func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, 
 		return 0, err
 	}
 	return int(f.Fd()), nil
-}
-
-// todo: may delete this after test
-func getContainerCgroupFdWithOpenat2(containerDir string) (int, error) {
-	cgroupfsPerfDir := path.Join(system.Conf.CgroupRootDir, "perf_event/")
-	perfFd, err := unix.Openat2(-1, cgroupfsPerfDir, &unix.OpenHow{
-		Flags: unix.O_DIRECTORY | unix.O_PATH,
-	})
-	if err != nil {
-		return 0, err
-	}
-	fd, err := unix.Openat2(perfFd, containerDir,
-		&unix.OpenHow{
-			Resolve: unix.RESOLVE_BENEATH | unix.RESOLVE_NO_MAGICLINKS,
-			Flags:   uint64(os.O_RDONLY) | unix.O_CLOEXEC,
-			Mode:    uint64(os.FileMode(0)),
-		})
-	return fd, nil
 }

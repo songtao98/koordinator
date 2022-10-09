@@ -112,8 +112,8 @@ type beCPUResourceMetric struct {
 type containerCPIMetric struct {
 	ID           uint64 `gorm:"primarykey"`
 	ContainerID  string `gorm:"index:idx_container_cpi_uid"`
-	Cycles       uint64
-	Instructions uint64
+	Cycles       float64
+	Instructions float64
 	Timestamp    time.Time
 }
 

@@ -135,10 +135,9 @@ func (s *storage) GetContainerThrottledMetric(id *string, start, end *time.Time)
 	return metrics, err
 }
 
-func (s *storage) GetContainerCPIMetric(containerID *string, start, end *time.Time) (containerCPIMetric, error) {
-	var metrics containerCPIMetric
-	err := s.db.Where("container_id = ? AND timestamp BETWEEN ? AND ?", containerID, start, end).
-		Order("timestamp DESC").First(&metrics).Error
+func (s *storage) GetContainerCPIMetric(containerID *string, start, end *time.Time) ([]containerCPIMetric, error) {
+	var metrics []containerCPIMetric
+	err := s.db.Where("container_id = ? AND timestamp BETWEEN ? AND ?", containerID, start, end).Find(&metrics).Error
 	return metrics, err
 }
 
