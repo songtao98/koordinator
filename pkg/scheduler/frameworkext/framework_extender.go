@@ -136,12 +136,18 @@ type FilterPhaseHook interface {
 	FilterHook(handle ExtendedHandle, cycleState *framework.CycleState, pod *corev1.Pod, nodeInfo *framework.NodeInfo) (*corev1.Pod, *framework.NodeInfo, bool)
 }
 
+type ScorePhaseHook interface {
+	SchedulingPhaseHook
+	ScoreHook(handle ExtendedHandle, cycleState *framework.CycleState, pod *corev1.Pod, nodes []*corev1.Node) (*corev1.Pod, []*corev1.Node, bool)
+}
+
 type frameworkExtenderFactoryImpl struct {
 	handle ExtendedHandle
 
 	// extend framework with SchedulingPhaseHook
 	preFilterHooks []PreFilterPhaseHook
 	filterHooks    []FilterPhaseHook
+	scoreHooks     []ScorePhaseHook
 }
 
 func NewFrameworkExtenderFactory(handle ExtendedHandle, hooks ...SchedulingPhaseHook) FrameworkExtenderFactory {
@@ -153,12 +159,18 @@ func NewFrameworkExtenderFactory(handle ExtendedHandle, hooks ...SchedulingPhase
 		preFilter, ok := h.(PreFilterPhaseHook)
 		if ok {
 			i.preFilterHooks = append(i.preFilterHooks, preFilter)
+			klog.V(4).InfoS("framework extender got scheduling hooks registered", "preFilter", preFilter.Name())
 		}
 		filter, ok := h.(FilterPhaseHook)
 		if ok {
 			i.filterHooks = append(i.filterHooks, filter)
+			klog.V(4).InfoS("framework extender got scheduling hooks registered", "filter", filter.Name())
 		}
-		klog.V(4).InfoS("framework extender got scheduling hooks registered", "preFilter", preFilter.Name(), "filter", filter.Name())
+		score, ok := h.(ScorePhaseHook)
+		if ok {
+			i.scoreHooks = append(i.scoreHooks, score)
+			klog.V(4).InfoS("framework extender got scheduling hooks registered", "score", score.Name())
+		}
 	}
 	return i
 }
@@ -169,6 +181,7 @@ func (i *frameworkExtenderFactoryImpl) New(f framework.Framework) FrameworkExten
 		handle:         i.handle,
 		preFilterHooks: i.preFilterHooks,
 		filterHooks:    i.filterHooks,
+		scoreHooks:     i.scoreHooks,
 	}
 }
 
@@ -180,6 +193,7 @@ type frameworkExtenderImpl struct {
 
 	preFilterHooks []PreFilterPhaseHook
 	filterHooks    []FilterPhaseHook
+	scoreHooks     []ScorePhaseHook
 }
 
 // RunPreFilterPlugins hooks the PreFilter phase of framework with pre-filter hooks.
@@ -188,7 +202,7 @@ func (ext *frameworkExtenderImpl) RunPreFilterPlugins(ctx context.Context, cycle
 		newPod, hooked := hook.PreFilterHook(ext.handle, cycleState, pod)
 		if hooked {
 			klog.V(5).InfoS("RunPreFilterPlugins hooked", "hook", hook.Name(), "pod", klog.KObj(pod))
-			return ext.Framework.RunPreFilterPlugins(ctx, cycleState, newPod)
+			pod = newPod
 		}
 	}
 	return ext.Framework.RunPreFilterPlugins(ctx, cycleState, pod)
@@ -202,10 +216,28 @@ func (ext *frameworkExtenderImpl) RunFilterPluginsWithNominatedPods(ctx context.
 		newPod, newNodeInfo, hooked := hook.FilterHook(ext.handle, cycleState, pod, nodeInfo)
 		if hooked {
 			klog.V(5).InfoS("RunFilterPluginsWithNominatedPods hooked", "hook", hook.Name(), "pod", klog.KObj(pod))
-			return ext.Framework.RunFilterPluginsWithNominatedPods(ctx, cycleState, newPod, newNodeInfo)
+			pod = newPod
+			nodeInfo = newNodeInfo
 		}
 	}
 	return ext.Framework.RunFilterPluginsWithNominatedPods(ctx, cycleState, pod, nodeInfo)
+}
+
+func (ext *frameworkExtenderImpl) RunScorePlugins(ctx context.Context, state *framework.CycleState, pod *corev1.Pod, nodes []*corev1.Node) (framework.PluginToNodeScores, *framework.Status) {
+	for _, hook := range ext.scoreHooks {
+		// hook can change the args (cycleState, pod, nodeInfo) for filter plugins
+		newPod, newNodes, hooked := hook.ScoreHook(ext.handle, state, pod, nodes)
+		if hooked {
+			klog.V(5).InfoS("RunScorePlugins hooked", "hook", hook.Name(), "pod", klog.KObj(pod))
+			pod = newPod
+			nodes = newNodes
+		}
+	}
+	pluginToNodeScores, status := ext.Framework.RunScorePlugins(ctx, state, pod, nodes)
+	if status.IsSuccess() && debugTopNScores > 0 {
+		debugScores(debugTopNScores, pod, pluginToNodeScores, nodes)
+	}
+	return pluginToNodeScores, status
 }
 
 // PluginFactoryProxy is used to proxy the call to the PluginFactory function and pass in the ExtendedHandle for the custom plugin

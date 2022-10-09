@@ -256,6 +256,14 @@ func (g *Plugin) PreBind(ctx context.Context, cycleState *framework.CycleState, 
 	return nil
 }
 
+func (g *Plugin) getNodeDeviceSummary(nodeName string) (*NodeDeviceSummary, bool) {
+	return g.nodeDeviceCache.getNodeDeviceSummary(nodeName)
+}
+
+func (g *Plugin) getAllNodeDeviceSummary() map[string]*NodeDeviceSummary {
+	return g.nodeDeviceCache.getAllNodeDeviceSummary()
+}
+
 func New(args runtime.Object, handle framework.Handle) (framework.Plugin, error) {
 	extendedHandle, ok := handle.(frameworkext.ExtendedHandle)
 	if !ok {
@@ -280,7 +288,7 @@ func New(args runtime.Object, handle framework.Handle) (framework.Plugin, error)
 	podInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    deviceCache.onPodAdd,
 		UpdateFunc: deviceCache.onPodUpdate,
-		DeleteFunc: deviceCache.onDeviceDelete,
+		DeleteFunc: deviceCache.onPodDelete,
 	})
 	// make sure Pods are loaded before scheduler starts working
 	podInformerFactory.Start(context.TODO().Done())

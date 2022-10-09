@@ -65,6 +65,7 @@ type Manager interface {
 	ActivateSiblings(*corev1.Pod, *framework.CycleState)
 	AllowGangGroup(*corev1.Pod, framework.Handle, string)
 	Unreserve(context.Context, *framework.CycleState, *corev1.Pod, string, framework.Handle, string)
+	GetGangSummary(gangId string) (*GangSummary, bool)
 }
 
 // PodGroupManager defines the scheduling operation called
@@ -451,4 +452,12 @@ func (pgMgr *PodGroupManager) GetAllPodsFromGang(gangId string) []*corev1.Pod {
 	}
 	pods = gang.getChildrenFromGang()
 	return pods
+}
+
+func (pgMgr *PodGroupManager) GetGangSummary(gangId string) (*GangSummary, bool) {
+	gang := pgMgr.cache.getGangFromCacheByGangId(gangId, false)
+	if gang == nil {
+		return nil, false
+	}
+	return gang.GetGangSummary(), true
 }

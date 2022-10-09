@@ -18,7 +18,6 @@ package noderesource
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -125,7 +124,7 @@ func (r *NodeResourceReconciler) isGPUResourceNeedSync(new, old *corev1.Node) bo
 		return true
 	}
 
-	for _, resourceName := range []corev1.ResourceName{extension.GPUMemoryRatio, extension.GPUMemoryRatio, extension.GPUMemory} {
+	for _, resourceName := range []corev1.ResourceName{extension.GPUCore, extension.GPUMemoryRatio, extension.GPUMemory, extension.KoordGPU} {
 		if util.IsResourceDiff(old.Status.Allocatable, new.Status.Allocatable, resourceName, *strategy.ResourceDiffThreshold) {
 			klog.Warningf("node %v resource diff bigger than %v, need sync", resourceName, *strategy.ResourceDiffThreshold)
 			return true
@@ -138,21 +137,33 @@ func (r *NodeResourceReconciler) updateGPUNodeResource(node *corev1.Node, device
 	if device == nil {
 		return nil
 	}
-	memoryTotal := resource.NewQuantity(0, resource.DecimalSI)
-	coreTotal := resource.NewQuantity(0, resource.BinarySI)
+	memoryTotal := resource.NewQuantity(0, resource.BinarySI)
+	coreTotal := resource.NewQuantity(0, resource.DecimalSI)
 	ratioTotal := resource.NewQuantity(0, resource.DecimalSI)
-	for _, gpu := range device.Spec.Devices {
-		if gpu.Health {
-			memoryTotal.Add(gpu.Resources[extension.GPUMemory])
-			coreTotal.Add(gpu.Resources[extension.GPUCore])
-			ratioTotal.Add(gpu.Resources[extension.GPUMemoryRatio])
+	koordGpuTotal := resource.NewQuantity(0, resource.DecimalSI)
+	hasGPUDevice := false
+	for _, device := range device.Spec.Devices {
+		if device.Type != schedulingv1alpha1.GPU {
+			continue
 		}
+		hasGPUDevice = true
+		if device.Health {
+			memoryTotal.Add(device.Resources[extension.GPUMemory])
+			coreTotal.Add(device.Resources[extension.GPUCore])
+			ratioTotal.Add(device.Resources[extension.GPUMemoryRatio])
+			koordGpuTotal.Add(device.Resources[extension.GPUCore])
+		}
+	}
+
+	if !hasGPUDevice {
+		return nil
 	}
 
 	copyNode := node.DeepCopy()
 	copyNode.Status.Allocatable[extension.GPUCore] = *coreTotal
 	copyNode.Status.Allocatable[extension.GPUMemory] = *memoryTotal
 	copyNode.Status.Allocatable[extension.GPUMemoryRatio] = *ratioTotal
+	copyNode.Status.Allocatable[extension.KoordGPU] = *koordGpuTotal
 
 	if !r.isGPUResourceNeedSync(copyNode, node) {
 		return nil
@@ -174,6 +185,8 @@ func (r *NodeResourceReconciler) updateGPUNodeResource(node *corev1.Node, device
 		updateNode.Status.Allocatable[extension.GPUCore] = *coreTotal
 		updateNode.Status.Capacity[extension.GPUMemoryRatio] = *ratioTotal
 		updateNode.Status.Allocatable[extension.GPUMemoryRatio] = *ratioTotal
+		updateNode.Status.Capacity[extension.KoordGPU] = *koordGpuTotal
+		updateNode.Status.Allocatable[extension.KoordGPU] = *koordGpuTotal
 
 		if err := r.Client.Status().Update(context.TODO(), updateNode); err != nil {
 			klog.Errorf("failed to update node gpu resource %v, error: %v", updateNode.Name, err)
@@ -190,9 +203,7 @@ func (r *NodeResourceReconciler) updateGPUNodeResource(node *corev1.Node, device
 func (r *NodeResourceReconciler) updateNodeBEResource(node *corev1.Node, beResource *nodeBEResource) error {
 	copyNode := node.DeepCopy()
 
-	if err := r.prepareNodeResource(copyNode, beResource); err != nil {
-		return err
-	}
+	r.prepareNodeResource(copyNode, beResource)
 
 	if needSync := r.isBEResourceSyncNeeded(node, copyNode); !needSync {
 		return nil
@@ -208,18 +219,15 @@ func (r *NodeResourceReconciler) updateNodeBEResource(node *corev1.Node, beResou
 			return err
 		}
 
-		if err := r.prepareNodeResource(updateNode, beResource); err != nil {
-			return err
-		}
+		r.prepareNodeResource(updateNode, beResource)
 
-		if err := r.Client.Status().Update(context.TODO(), updateNode); err == nil {
-			r.BESyncContext.Store(util.GenerateNodeKey(&node.ObjectMeta), r.Clock.Now())
-			klog.V(5).Infof("update node %v success, detail %+v", updateNode.Name, updateNode)
-			return nil
-		} else {
+		if err := r.Client.Status().Update(context.TODO(), updateNode); err != nil {
 			klog.Errorf("failed to update node %v, error: %v", updateNode.Name, err)
 			return err
 		}
+		r.BESyncContext.Store(util.GenerateNodeKey(&node.ObjectMeta), r.Clock.Now())
+		klog.V(5).Infof("update node %v success, detail %+v", updateNode.Name, updateNode)
+		return nil
 	})
 }
 
@@ -253,14 +261,16 @@ func (r *NodeResourceReconciler) isBEResourceSyncNeeded(old, new *corev1.Node) b
 	return false
 }
 
-func (r *NodeResourceReconciler) prepareNodeResource(node *corev1.Node, beResource *nodeBEResource) error {
+func (r *NodeResourceReconciler) prepareNodeResource(node *corev1.Node, beResource *nodeBEResource) {
 	if beResource.MilliCPU == nil {
 		delete(node.Status.Capacity, extension.BatchCPU)
 		delete(node.Status.Allocatable, extension.BatchCPU)
 	} else {
+		// NOTE: extended resource would be validated as an integer, so beResource should be checked before the update
 		if _, ok := beResource.MilliCPU.AsInt64(); !ok {
-			klog.V(2).Infof("invalid cpu value, cpu quantity %v is not int64", beResource.MilliCPU)
-			return fmt.Errorf("invalid cpu value, cpu quantity %v is not int64", beResource.MilliCPU)
+			klog.V(2).Infof("batch cpu quantity is not int64 type and will be rounded, original value %v",
+				*beResource.MilliCPU)
+			beResource.MilliCPU.Set(beResource.MilliCPU.Value())
 		}
 		node.Status.Capacity[extension.BatchCPU] = *beResource.MilliCPU
 		node.Status.Allocatable[extension.BatchCPU] = *beResource.MilliCPU
@@ -270,9 +280,11 @@ func (r *NodeResourceReconciler) prepareNodeResource(node *corev1.Node, beResour
 		delete(node.Status.Capacity, extension.BatchMemory)
 		delete(node.Status.Allocatable, extension.BatchMemory)
 	} else {
+		// NOTE: extended resource would be validated as an integer, so beResource should be checked before the update
 		if _, ok := beResource.Memory.AsInt64(); !ok {
-			klog.V(2).Infof("invalid memory value, memory quantity %v is not int64", beResource.Memory)
-			return fmt.Errorf("invalid memory value, memory quantity %v is not int64", beResource.Memory)
+			klog.V(2).Infof("batch memory quantity is not int64 type and will be rounded, original value %v",
+				*beResource.Memory)
+			beResource.Memory.Set(beResource.Memory.Value())
 		}
 		node.Status.Capacity[extension.BatchMemory] = *beResource.Memory
 		node.Status.Allocatable[extension.BatchMemory] = *beResource.Memory
@@ -280,5 +292,4 @@ func (r *NodeResourceReconciler) prepareNodeResource(node *corev1.Node, beResour
 
 	strategy := config.GetNodeColocationStrategy(r.cfgCache.GetCfgCopy(), node)
 	runNodePrepareExtenders(strategy, node)
-	return nil
 }

@@ -244,8 +244,9 @@ func Test_updateNodeGPUResource(t *testing.T) {
 			Devices: []schedulingv1alpha1.DeviceInfo{
 				{
 					UUID:   "1",
-					Minor:  0,
+					Minor:  pointer.Int32Ptr(0),
 					Health: true,
+					Type:   schedulingv1alpha1.GPU,
 					Resources: map[corev1.ResourceName]resource.Quantity{
 						apiext.GPUCore:        *resource.NewQuantity(100, resource.BinarySI),
 						apiext.GPUMemory:      *resource.NewQuantity(8000, resource.BinarySI),
@@ -254,8 +255,9 @@ func Test_updateNodeGPUResource(t *testing.T) {
 				},
 				{
 					UUID:   "2",
-					Minor:  1,
+					Minor:  pointer.Int32Ptr(1),
 					Health: true,
+					Type:   schedulingv1alpha1.GPU,
 					Resources: map[corev1.ResourceName]resource.Quantity{
 						apiext.GPUCore:        *resource.NewQuantity(100, resource.BinarySI),
 						apiext.GPUMemory:      *resource.NewQuantity(10000, resource.BinarySI),
@@ -594,7 +596,7 @@ func Test_updateNodeBEResource(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "failed to update for invalid be resource",
+			name: "notice the update for invalid be resource",
 			fields: fields{
 				Client: fake.NewClientBuilder().WithRuntimeObjects(&corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
@@ -634,7 +636,7 @@ func Test_updateNodeBEResource(t *testing.T) {
 				},
 				beResource: &nodeBEResource{
 					MilliCPU: resource.NewMilliQuantity(22200, resource.DecimalSI),
-					Memory:   resource.NewQuantity(40*1024*1024*1024, resource.BinarySI),
+					Memory:   resource.NewMilliQuantity(40*1001*1023*1024*1024, resource.BinarySI),
 				},
 			},
 			want: &corev1.Node{
@@ -643,16 +645,16 @@ func Test_updateNodeBEResource(t *testing.T) {
 				},
 				Status: corev1.NodeStatus{
 					Allocatable: corev1.ResourceList{
-						apiext.BatchCPU:    resource.MustParse("20"),
-						apiext.BatchMemory: resource.MustParse("40G"),
+						apiext.BatchCPU:    resource.MustParse("23"),
+						apiext.BatchMemory: resource.MustParse("42950637650"),
 					},
 					Capacity: corev1.ResourceList{
-						apiext.BatchCPU:    resource.MustParse("20"),
-						apiext.BatchMemory: resource.MustParse("40G"),
+						apiext.BatchCPU:    resource.MustParse("23"),
+						apiext.BatchMemory: resource.MustParse("42950637650"),
 					},
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "not update be resource with node-specified config",
@@ -806,6 +808,38 @@ func Test_updateNodeBEResource(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "failed to update for node not found",
+			fields: fields{
+				Client: fake.NewClientBuilder().WithScheme(runtime.NewScheme()).Build(),
+				config: enabledCfg,
+				SyncContext: &SyncContext{
+					contextMap: map[string]time.Time{"/test-node0": time.Now()},
+				},
+			},
+			args: args{
+				oldNode: &corev1.Node{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-node0",
+					},
+					Status: corev1.NodeStatus{
+						Allocatable: corev1.ResourceList{
+							apiext.BatchCPU:    resource.MustParse("20"),
+							apiext.BatchMemory: resource.MustParse("40G"),
+						},
+						Capacity: corev1.ResourceList{
+							apiext.BatchCPU:    resource.MustParse("20"),
+							apiext.BatchMemory: resource.MustParse("40G"),
+						},
+					},
+				},
+				beResource: &nodeBEResource{
+					MilliCPU: resource.NewQuantity(30, resource.DecimalSI),
+					Memory:   resource.NewQuantity(50*1024*1024*1024, resource.BinarySI),
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -819,16 +853,18 @@ func Test_updateNodeBEResource(t *testing.T) {
 			}
 			got := r.updateNodeBEResource(tt.args.oldNode, tt.args.beResource)
 			assert.Equal(t, tt.wantErr, got != nil, got)
-			gotNode := &corev1.Node{}
-			_ = r.Client.Get(context.TODO(), types.NamespacedName{Name: tt.args.oldNode.Name}, gotNode)
+			if !tt.wantErr {
+				gotNode := &corev1.Node{}
+				_ = r.Client.Get(context.TODO(), types.NamespacedName{Name: tt.args.oldNode.Name}, gotNode)
 
-			wantCPU := tt.want.Status.Allocatable[apiext.BatchCPU]
-			gotCPU := gotNode.Status.Allocatable[apiext.BatchCPU]
-			assert.Equal(t, wantCPU.Value(), gotCPU.Value())
+				wantCPU := tt.want.Status.Allocatable[apiext.BatchCPU]
+				gotCPU := gotNode.Status.Allocatable[apiext.BatchCPU]
+				assert.Equal(t, wantCPU.Value(), gotCPU.Value())
 
-			wantMem := tt.want.Status.Allocatable[apiext.BatchMemory]
-			gotMem := gotNode.Status.Allocatable[apiext.BatchMemory]
-			assert.Equal(t, wantMem.Value(), gotMem.Value())
+				wantMem := tt.want.Status.Allocatable[apiext.BatchMemory]
+				gotMem := gotNode.Status.Allocatable[apiext.BatchMemory]
+				assert.Equal(t, wantMem.Value(), gotMem.Value())
+			}
 		})
 	}
 }

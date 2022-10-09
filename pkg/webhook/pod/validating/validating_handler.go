@@ -25,6 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/koordinator-sh/koordinator/pkg/webhook/elasticquota"
 )
 
 // PodValidatingHandler handles Pod
@@ -57,6 +59,12 @@ func (h *PodValidatingHandler) validatingPodFn(ctx context.Context, req admissio
 	}
 
 	allowed, reason, err = h.clusterColocationProfileValidatingPod(ctx, req)
+	if err == nil {
+		plugin := elasticquota.NewPlugin(h.Decoder, h.Client)
+		if err = plugin.ValidatePod(ctx, req); err != nil {
+			return false, "", err
+		}
+	}
 	return
 }
 

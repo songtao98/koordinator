@@ -194,9 +194,8 @@ func (b *CPUBurst) start() {
 			klog.Warningf("podMeta is illegal, detail %v", podMeta)
 			continue
 		}
-		podQOS := apiext.GetPodQoSClass(podMeta.Pod)
-		if podQOS == apiext.QoSLSR || podQOS == apiext.QoSBE {
-			// ignore LSR and BE pod
+		if !util.IsPodCPUBurstable(podMeta.Pod) {
+			// ignore non-burstable pod, e.g. LSR, BE pods
 			continue
 		}
 		// merge burst config from pod and node
@@ -307,7 +306,7 @@ func (b *CPUBurst) applyCFSQuotaBurst(burstCfg *slov1alpha1.CPUBurstConfig, podM
 		}
 		containerCurCFS, err := util.GetContainerCurCFSQuota(podMeta.CgroupDir, containerStat)
 		if err != nil {
-			klog.Warningf("get container %s/%s/%s current cfs quota failed, skip this round, error %v",
+			klog.Infof("get container %s/%s/%s current cfs quota failed, maybe not exist, skip this round, reason %v",
 				pod.Namespace, pod.Name, containerStat.Name, err)
 			continue
 		}
@@ -347,7 +346,7 @@ func (b *CPUBurst) applyCFSQuotaBurst(burstCfg *slov1alpha1.CPUBurstConfig, podM
 		deltaContainerCFS := containerTargetCFS - containerCurCFS
 		err = b.applyContainerCFSQuota(podMeta, containerStat, containerCurCFS, deltaContainerCFS)
 		if err != nil {
-			klog.Infof("scale container %v/%v/%v cfs quota failed, operation %v, delta cfs quota %v, error %v",
+			klog.Infof("scale container %v/%v/%v cfs quota failed, operation %v, delta cfs quota %v, reason %v",
 				pod.Namespace, pod.Name, containerStat.Name, finalOperation, deltaContainerCFS, err)
 			continue
 		}
@@ -404,7 +403,7 @@ func (b *CPUBurst) genOperationByContainer(burstCfg *slov1alpha1.CPUBurstConfig,
 
 	containerThrottled := b.resmanager.collectContainerThrottledMetricLast(&containerStat.ContainerID)
 	if containerThrottled.Error != nil {
-		klog.Warningf("failed to get container %s/%s/%s throttled metric, skip this round, error %v",
+		klog.Infof("failed to get container %s/%s/%s throttled metric, maybe not exist, skip this round, reason %v",
 			pod.Namespace, pod.Name, containerStat.Name, containerThrottled.Error)
 		return cfsRemain
 	}
@@ -454,7 +453,7 @@ func (b *CPUBurst) applyContainerCFSQuota(podMeta *statesinformer.PodMeta, conta
 		containerCFSValStr := strconv.FormatInt(targetContainerCFS, 10)
 		updater := executor.NewCommonCgroupResourceUpdater(ownerRef, containerDir, system.CPUCFSQuota, containerCFSValStr)
 		if err := b.executor.Update(updater); err != nil {
-			return fmt.Errorf("update container cgroup %v failed, error %v", containerDir, err)
+			return fmt.Errorf("update container cgroup %v failed, reason %v", containerDir, err)
 		}
 	} else {
 		// cfs scale down, order: container->pod
@@ -463,7 +462,7 @@ func (b *CPUBurst) applyContainerCFSQuota(podMeta *statesinformer.PodMeta, conta
 		containerCFSValStr := strconv.FormatInt(targetContainerCFS, 10)
 		updater := executor.NewCommonCgroupResourceUpdater(ownerRef, containerDir, system.CPUCFSQuota, containerCFSValStr)
 		if err := b.executor.Update(updater); err != nil {
-			return fmt.Errorf("update container cgroup %v failed, error %v", containerDir, err)
+			return fmt.Errorf("update container cgroup %v failed, reason %v", containerDir, err)
 		}
 		if curPodCFS > 0 {
 			// no need to adjust pod cpu.cfs_quota if it is already -1
@@ -472,7 +471,7 @@ func (b *CPUBurst) applyContainerCFSQuota(podMeta *statesinformer.PodMeta, conta
 			podCFSValStr := strconv.FormatInt(targetPodCFS, 10)
 			updater := executor.NewCommonCgroupResourceUpdater(ownerRef, podDir, system.CPUCFSQuota, podCFSValStr)
 			if err := b.executor.Update(updater); err != nil {
-				return fmt.Errorf("update pod cgroup %v failed, error %v", podMeta.CgroupDir, err)
+				return fmt.Errorf("update pod cgroup %v failed, reason %v", podMeta.CgroupDir, err)
 			}
 		}
 	}
@@ -575,7 +574,7 @@ func calcStaticCPUBurstVal(container *corev1.Container, burstCfg *slov1alpha1.CP
 func genPodBurstConfig(pod *corev1.Pod, nodeCfg *slov1alpha1.CPUBurstConfig) *slov1alpha1.CPUBurstConfig {
 	podCPUBurstCfg, err := apiext.GetPodCPUBurstConfig(pod)
 	if err != nil {
-		klog.Infof("parse pod %s/%s cpu burst config failed, error %v", pod.Namespace, pod.Name, err)
+		klog.Infof("parse pod %s/%s cpu burst config failed, reason %v", pod.Namespace, pod.Name, err)
 		return nodeCfg
 	}
 

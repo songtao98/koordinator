@@ -24,19 +24,45 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	clientcache "k8s.io/client-go/tools/cache"
+	sigcache "sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/runtime/inject"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"sigs.k8s.io/scheduler-plugins/pkg/apis/scheduling/v1alpha1"
+	pgfake "sigs.k8s.io/scheduler-plugins/pkg/generated/clientset/versioned/fake"
+	"sigs.k8s.io/scheduler-plugins/pkg/generated/informers/externalversions"
+
+	"github.com/koordinator-sh/koordinator/pkg/webhook/elasticquota"
 )
 
 func makeTestHandler() *PodValidatingHandler {
 	client := fake.NewClientBuilder().Build()
-	decoder, _ := admission.NewDecoder(scheme.Scheme)
+	sche := client.Scheme()
+	sche.AddKnownTypes(schema.GroupVersion{
+		Group:   "scheduling.sigs.k8s.io",
+		Version: "v1alpha1",
+	}, &v1alpha1.ElasticQuota{}, &v1alpha1.ElasticQuotaList{})
+	decoder, _ := admission.NewDecoder(sche)
 	handler := &PodValidatingHandler{}
 	handler.InjectClient(client)
 	handler.InjectDecoder(decoder)
+
+	cacheTmp := &informertest.FakeInformers{
+		InformersByGVK: map[schema.GroupVersionKind]clientcache.SharedIndexInformer{},
+		Scheme:         sche,
+	}
+	pgClient := pgfake.NewSimpleClientset()
+	quotaSharedInformerFactory := externalversions.NewSharedInformerFactory(pgClient, 0)
+	quotaInformer := quotaSharedInformerFactory.Scheduling().V1alpha1().ElasticQuotas().Informer()
+	cacheTmp.InformersByGVK[elasticquotasKind] = quotaInformer
+	handler.InjectCache(cacheTmp)
 	return handler
 }
+
+var elasticquotasKind = schema.GroupVersionKind{Group: "scheduling.sigs.k8s.io", Version: "v1alpha1", Kind: "ElasticQuota"}
 
 func gvr(resource string) metav1.GroupVersionResource {
 	return metav1.GroupVersionResource{
@@ -110,4 +136,22 @@ func TestValidatingHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+var _ inject.Cache = &PodValidatingHandler{}
+
+func (h *PodValidatingHandler) InjectCache(cache sigcache.Cache) error {
+	ctx := context.TODO()
+	quotaInformer, err := cache.GetInformer(ctx, &v1alpha1.ElasticQuota{})
+	if err != nil {
+		return err
+	}
+	plugin := elasticquota.NewPlugin(h.Decoder, h.Client)
+	qt := plugin.QuotaTopo
+	quotaInformer.AddEventHandler(clientcache.ResourceEventHandlerFuncs{
+		AddFunc:    qt.OnQuotaAdd,
+		UpdateFunc: qt.OnQuotaUpdate,
+		DeleteFunc: qt.OnQuotaDelete,
+	})
+	return nil
 }
