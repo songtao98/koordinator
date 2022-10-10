@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/NVIDIA/go-nvml v0.11.6-0.0.20220823120812-7e2082095e82
 	github.com/cakturk/go-netstat v0.0.0-20200220111822-e5b49efee7a5
-	github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/docker v20.10.18+incompatible
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/gin-gonic/gin v1.8.1
@@ -15,7 +15,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/hodgesds/perf-utils v0.5.1
-	github.com/jedib0t/go-pretty/v6 v6.3.9
+	github.com/jedib0t/go-pretty/v6 v6.4.0
 	github.com/k8stopologyawareschedwg/noderesourcetopology-api v0.0.12
 	github.com/mohae/deepcopy v0.0.0-20170603005431-491d3605edfb
 	github.com/openkruise/kruise v1.2.0
@@ -191,6 +191,7 @@ require (
 )
 
 replace (
+	github.com/google/cadvisor => github.com/koordinator-sh/cadvisor v0.0.0-20220919031936-833eb74e858e
 	k8s.io/api => k8s.io/api v0.22.6
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.6
 	k8s.io/apimachinery => k8s.io/apimachinery v0.22.6
