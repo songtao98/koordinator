@@ -42,7 +42,7 @@ func newStorage(dsn string) (*storage, error) {
 	db.AutoMigrate(&nodeResourceMetric{}, &podResourceMetric{}, &containerResourceMetric{}, &beCPUResourceMetric{})
 	db.AutoMigrate(&rawRecord{})
 	db.AutoMigrate(&podThrottledMetric{}, &containerThrottledMetric{})
-	db.AutoMigrate(&containerCPIMetric{})
+	db.AutoMigrate(&containerCPIMetric{}, &containerPSIMetric{})
 
 	database, err := db.DB()
 	if err != nil {
@@ -145,6 +145,12 @@ func (s *storage) GetContainerCPIMetric(containerID *string, start, end *time.Ti
 	return metrics, err
 }
 
+func (s *storage) GetContainerPSIMetric(containerID *string, start, end *time.Time) ([]containerPSIMetric, error) {
+	var metrics []containerPSIMetric
+	err := s.db.Where("container_id = ? AND timestamp BETWEEN ? AND ?", containerID, start, end).Find(&metrics).Error
+	return metrics, err
+}
+
 func (s *storage) DeleteNodeResourceMetric(start, end *time.Time) error {
 	return s.db.Where("timestamp BETWEEN ? AND ?", start, end).Delete(&nodeResourceMetric{}).Error
 }
@@ -171,4 +177,8 @@ func (s *storage) DeleteContainerThrottledMetric(start, end *time.Time) error {
 
 func (s *storage) DeleteContainerCPIMetric(start, end *time.Time) error {
 	return s.db.Where("timestamp BETWEEN ? AND ?", start, end).Delete(&containerCPIMetric{}).Error
+}
+
+func (s *storage) DeleteContainerPSIMetric(start, end *time.Time) error {
+	return s.db.Where("timestamp BETWEEN ? AND ?", start, end).Delete(&containerPSIMetric{}).Error
 }

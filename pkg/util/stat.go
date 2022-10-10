@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
 	"github.com/koordinator-sh/koordinator/pkg/util/performance"
 	"github.com/koordinator-sh/koordinator/pkg/util/system"
 )
@@ -136,14 +135,14 @@ func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, 
 // GetContainerPSI
 // todo: due to different os, pressurePath and pressure file name can be different
 // need to make it configurable
-func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (*metriccache.PSIMetric, error) {
+func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (map[string]float64, error) {
 	containerPressurePath, err := GetContainerCgroupCPUAcctPressurePath(podCgroupDir, c)
 	if err != nil {
-		return &metriccache.PSIMetric{}, err
+		return nil, err
 	}
-	psi, err := performance.ReadPSI(containerPressurePath)
+	psiMap, err := performance.ReadPSI(containerPressurePath)
 	if err != nil {
-		return &metriccache.PSIMetric{}, err
+		return nil, err
 	}
-	return psi, nil
+	return psiMap, nil
 }

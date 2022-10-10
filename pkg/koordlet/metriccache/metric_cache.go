@@ -512,7 +512,7 @@ func (m *metricCache) GetInterferenceMetric(metricName InterferenceMetricName, o
 	return result
 }
 
-func aggregateInterferenceMetricByName(metricName InterferenceMetricName, metrics interface{}, aggregateFunc AggregationFunc) (interface{}, error) {
+func aggregateInterferenceMetricByName(metricName InterferenceMetricName, metrics interface{}, aggregateFunc AggregationFunc) (metricValue interface{}, err error) {
 	switch metricName {
 	case MetricNameContainerCPI:
 		cycles, err := aggregateFunc(metrics, AggregateParam{
@@ -525,14 +525,53 @@ func aggregateInterferenceMetricByName(metricName InterferenceMetricName, metric
 		if err != nil {
 			return nil, err
 		}
-		metricValue := &CPIMetric{
+		metricValue = &CPIMetric{
 			Cycles:       uint64(cycles),
 			Instructions: uint64(instructions),
 		}
-		return metricValue, nil
+	case MetricNameContainerPSI:
+		someCPUAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "SomeCPUAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		someMemAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "SomeMemAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		someIOAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "SomeIOAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		fullCPUAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "FullCPUAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		fullMemAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "FullMemAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		fullIOAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "FullIOAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		metricValue = &PSIMetric{
+			SomeCPUAvg10: someCPUAvg10,
+			SomeMemAvg10: someMemAvg10,
+			SomeIOAvg10:  someIOAvg10,
+			FullCPUAvg10: fullCPUAvg10,
+			FullMemAvg10: fullMemAvg10,
+			FullIOAvg10:  fullIOAvg10,
+		}
 	default:
 		return nil, fmt.Errorf("get unknown metric name")
 	}
+	return
 }
 
 func (m *metricCache) InsertNodeResourceMetric(t time.Time, nodeResUsed *NodeResourceMetric) error {
@@ -717,6 +756,9 @@ func (m *metricCache) recycleDB() {
 	if err := m.db.DeleteContainerCPIMetric(&oldTime, &expiredTime); err != nil {
 		klog.Warningf("DeleteContainerCPIMetric failed during recycle, error %v", err)
 	}
+	if err := m.db.DeleteContainerPSIMetric(&oldTime, &expiredTime); err != nil {
+		klog.Warningf("DeleteContainerPSIMetric failed during recycle, error %v", err)
+	}
 	// raw records do not need to cleanup
 	klog.Infof("expired metric data before %v has been recycled", expiredTime)
 }
@@ -787,6 +829,8 @@ func (m *metricCache) convertAndGetInterferenceMetric(metricName InterferenceMet
 	switch metricName {
 	case MetricNameContainerCPI:
 		return m.db.GetContainerCPIMetric(objectID, start, end)
+	case MetricNameContainerPSI:
+		return m.db.GetContainerPSIMetric(objectID, start, end)
 	default:
 		return nil, fmt.Errorf("get unknown metric name")
 	}

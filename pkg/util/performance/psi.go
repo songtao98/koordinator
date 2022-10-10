@@ -24,8 +24,6 @@ import (
 	"os"
 	"path"
 	"strings"
-
-	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
 )
 
 const psiLineFormat = "avg10=%f avg60=%f avg300=%f total=%d"
@@ -42,9 +40,8 @@ type PSIStats struct {
 	Full *PSILine
 }
 
-// todo: organize this?
-func ReadPSI(pressurePath string) (*metriccache.PSIMetric, error) {
-	result := &metriccache.PSIMetric{}
+func ReadPSI(pressurePath string) (map[string]float64, error) {
+	result := map[string]float64{}
 	cpuPressure, err := os.ReadFile(path.Join(pressurePath, "/cpu.pressure"))
 	if err != nil {
 		return result, err
@@ -53,9 +50,10 @@ func ReadPSI(pressurePath string) (*metriccache.PSIMetric, error) {
 	if err != nil {
 		return result, err
 	}
-	result.SomeCPUAvg10 = (*cpuStats.Some).Avg10
+	result["SomeCPUAvg10"] = (*cpuStats.Some).Avg10
+	result["FullMemAvg10"] = 0
 	if cpuStats.Full != nil {
-		result.FullCPUAvg10 = (*cpuStats.Full).Avg10
+		result["FullCPUAvg10"] = (*cpuStats.Full).Avg10
 	}
 	memPressure, err := os.ReadFile(path.Join(pressurePath, "/memory.pressure"))
 	if err != nil {
@@ -65,8 +63,8 @@ func ReadPSI(pressurePath string) (*metriccache.PSIMetric, error) {
 	if err != nil {
 		return result, err
 	}
-	result.SomeMemAvg10 = (*memStats.Some).Avg10
-	result.FullMemAvg10 = (*memStats.Full).Avg10
+	result["SomeMemAvg10"] = (*memStats.Some).Avg10
+	result["FullMemAvg10"] = (*memStats.Full).Avg10
 	ioPressure, err := os.ReadFile(path.Join(pressurePath, "/io.pressure"))
 	if err != nil {
 		return result, err
@@ -75,8 +73,8 @@ func ReadPSI(pressurePath string) (*metriccache.PSIMetric, error) {
 	if err != nil {
 		return result, err
 	}
-	result.SomeIOAvg10 = (*ioStats.Some).Avg10
-	result.FullIOAvg10 = (*ioStats.Full).Avg10
+	result["SomeIOAvg10"] = (*ioStats.Some).Avg10
+	result["FullIOAvg10"] = (*ioStats.Full).Avg10
 	return result, nil
 }
 
