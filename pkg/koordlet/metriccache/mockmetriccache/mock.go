@@ -93,6 +93,20 @@ func (mr *MockMetricCacheMockRecorder) GetContainerThrottledMetric(containerID, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContainerThrottledMetric", reflect.TypeOf((*MockMetricCache)(nil).GetContainerThrottledMetric), containerID, param)
 }
 
+// GetInterferenceMetric mocks base method.
+func (m *MockMetricCache) GetInterferenceMetric(metricName metriccache.InterferenceMetricName, objectID *string, param *metriccache.QueryParam) metriccache.InterferenceQueryResult {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetInterferenceMetric", metricName, objectID, param)
+	ret0, _ := ret[0].(metriccache.InterferenceQueryResult)
+	return ret0
+}
+
+// GetInterferenceMetric indicates an expected call of GetInterferenceMetric.
+func (mr *MockMetricCacheMockRecorder) GetInterferenceMetric(metricName, objectID, param interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterferenceMetric", reflect.TypeOf((*MockMetricCache)(nil).GetInterferenceMetric), metricName, objectID, param)
+}
+
 // GetNodeCPUInfo mocks base method.
 func (m *MockMetricCache) GetNodeCPUInfo(param *metriccache.QueryParam) (*metriccache.NodeCPUInfo, error) {
 	m.ctrl.T.Helper()
@@ -150,20 +164,6 @@ func (mr *MockMetricCacheMockRecorder) GetPodThrottledMetric(podUID, param inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPodThrottledMetric", reflect.TypeOf((*MockMetricCache)(nil).GetPodThrottledMetric), podUID, param)
 }
 
-// GetInterferenceMetric mocks base method.
-func (m *MockMetricCache) GetInterferenceMetric(metricName metriccache.InterferenceMetricName, objectID *string, param *metriccache.QueryParam) metriccache.InterferenceQueryResult {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInterferenceMetric", metricName, objectID, param)
-	ret0, _ := ret[0].(metriccache.InterferenceQueryResult)
-	return ret0
-}
-
-// GetInterferenceMetric indicates an expected call of GetInterferenceMetric.
-func (mr *MockMetricCacheMockRecorder) GetInterferenceMetric(metricName, objectID, param interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInterferenceMetric", reflect.TypeOf((*MockMetricCache)(nil).GetInterferenceMetric), metricName, objectID, param)
-}
-
 // InsertBECPUResourceMetric mocks base method.
 func (m *MockMetricCache) InsertBECPUResourceMetric(t time.Time, metric *metriccache.BECPUResourceMetric) error {
 	m.ctrl.T.Helper()
@@ -204,6 +204,20 @@ func (m *MockMetricCache) InsertContainerThrottledMetrics(t time.Time, metric *m
 func (mr *MockMetricCacheMockRecorder) InsertContainerThrottledMetrics(t, metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertContainerThrottledMetrics", reflect.TypeOf((*MockMetricCache)(nil).InsertContainerThrottledMetrics), t, metric)
+}
+
+// InsertInterferenceMetrics mocks base method.
+func (m *MockMetricCache) InsertInterferenceMetrics(t time.Time, metric *metriccache.InterferenceMetric) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertInterferenceMetrics", t, metric)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InsertInterferenceMetrics indicates an expected call of InsertInterferenceMetrics.
+func (mr *MockMetricCacheMockRecorder) InsertInterferenceMetrics(t, metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertInterferenceMetrics", reflect.TypeOf((*MockMetricCache)(nil).InsertInterferenceMetrics), t, metric)
 }
 
 // InsertNodeCPUInfo mocks base method.
@@ -260,20 +274,6 @@ func (m *MockMetricCache) InsertPodThrottledMetrics(t time.Time, metric *metricc
 func (mr *MockMetricCacheMockRecorder) InsertPodThrottledMetrics(t, metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertPodThrottledMetrics", reflect.TypeOf((*MockMetricCache)(nil).InsertPodThrottledMetrics), t, metric)
-}
-
-// InsertInterferenceMetrics mocks base method.
-func (m *MockMetricCache) InsertInterferenceMetrics(t time.Time, metric *metriccache.InterferenceMetric) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InsertInterferenceMetrics", t, metric)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// InsertInterferenceMetrics indicates an expected call of InsertInterferenceMetrics.
-func (mr *MockMetricCacheMockRecorder) InsertInterferenceMetrics(t, metric interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertInterferenceMetrics", reflect.TypeOf((*MockMetricCache)(nil).InsertInterferenceMetrics), t, metric)
 }
 
 // Run mocks base method.
