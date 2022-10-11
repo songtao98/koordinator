@@ -29,12 +29,12 @@ import (
 )
 
 type performanceCollector struct {
-	statesInformer    *statesinformer.StatesInformer
-	metricCache       *metriccache.MetricCache
+	statesInformer    statesinformer.StatesInformer
+	metricCache       metriccache.MetricCache
 	collectTimeWindow int
 }
 
-func NewPerformanceCollector(statesInformer *statesinformer.StatesInformer, metricCache *metriccache.MetricCache, collectTimeWindow int) *performanceCollector {
+func NewPerformanceCollector(statesInformer statesinformer.StatesInformer, metricCache metriccache.MetricCache, collectTimeWindow int) *performanceCollector {
 	return &performanceCollector{
 		statesInformer:    statesInformer,
 		metricCache:       metricCache,
@@ -46,7 +46,7 @@ func (c *performanceCollector) collectContainerMetrics() {
 	klog.V(6).Infof("start collectContainerMetrics")
 	timeWindow := time.Now()
 	containerStatusesMap := map[*corev1.ContainerStatus]string{}
-	podMetas := (*c.statesInformer).GetAllPods()
+	podMetas := c.statesInformer.GetAllPods()
 	for _, meta := range podMetas {
 		pod := meta.Pod
 		for i := range pod.Status.ContainerStatuses {
@@ -64,7 +64,7 @@ func (c *performanceCollector) collectContainerMetrics() {
 		}(containerStatus, podParentCgroupDir)
 	}
 	wg.Wait()
-	klog.V(5).Infof("collectContainerMetrics for time window %s finished at %s, container num %d",
+	klog.V(4).Infof("collectContainerMetrics for time window %s finished at %s, container num %d",
 		timeWindow, time.Now(), len(containerStatusesMap))
 }
 
@@ -83,7 +83,7 @@ func (c *performanceCollector) collectSingleContainerCPI(podParentCgroupDir stri
 			Instructions: instructions,
 		},
 	}
-	err = (*c.metricCache).InsertInterferenceMetrics(collectTime, containerCpiMetric)
+	err = c.metricCache.InsertInterferenceMetrics(collectTime, containerCpiMetric)
 	if err != nil {
 		klog.Errorf("insert container cpi metrics failed, err %v", err)
 	}
@@ -108,7 +108,7 @@ func (c *performanceCollector) collectSingleContainerPSI(podParentCgroupDir stri
 			FullIOAvg10:  psiMap["FullIOAvg10"],
 		},
 	}
-	err = (*c.metricCache).InsertInterferenceMetrics(collectTime, containerPsiMetric)
+	err = c.metricCache.InsertInterferenceMetrics(collectTime, containerPsiMetric)
 	if err != nil {
 		klog.Errorf("insert container psi metrics failed, err %v", err)
 	}
@@ -117,7 +117,7 @@ func (c *performanceCollector) collectSingleContainerPSI(podParentCgroupDir stri
 func (c *performanceCollector) collectPodMetrics() {
 	klog.V(6).Infof("start collectPodMetrics")
 	timeWindow := time.Now()
-	podMetas := (*c.statesInformer).GetAllPods()
+	podMetas := c.statesInformer.GetAllPods()
 	var wg sync.WaitGroup
 	wg.Add(len(podMetas))
 	for _, meta := range podMetas {
@@ -125,15 +125,15 @@ func (c *performanceCollector) collectPodMetrics() {
 		podCgroupDir := meta.CgroupDir
 		go func(pod *corev1.Pod, podCgroupDir string) {
 			defer wg.Done()
-			c.collectSinglePodPSI(pod, podCgroupDir)
+			c.collectSinglePodPSI(pod, podCgroupDir, timeWindow)
 		}(pod, podCgroupDir)
 	}
 	wg.Wait()
-	klog.V(5).Infof("collectPodMetrics for time window %s finished at %s, pod num %d",
+	klog.V(4).Infof("collectPodMetrics for time window %s finished at %s, pod num %d",
 		timeWindow, time.Now(), len(podMetas))
 }
 
-func (c *performanceCollector) collectSinglePodPSI(pod *corev1.Pod, podCgroupDir string) {
+func (c *performanceCollector) collectSinglePodPSI(pod *corev1.Pod, podCgroupDir string, timeWindow time.Time) {
 	collectTime := time.Now()
 	psiMap, err := util.GetPodPSI(podCgroupDir)
 	if err != nil {
@@ -152,7 +152,7 @@ func (c *performanceCollector) collectSinglePodPSI(pod *corev1.Pod, podCgroupDir
 			FullIOAvg10:  psiMap["FullIOAvg10"],
 		},
 	}
-	err = (*c.metricCache).InsertInterferenceMetrics(collectTime, containerPsiMetric)
+	err = c.metricCache.InsertInterferenceMetrics(collectTime, containerPsiMetric)
 	if err != nil {
 		klog.Errorf("insert pod psi metrics failed, err %v", err)
 	}

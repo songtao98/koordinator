@@ -157,7 +157,7 @@ func (c *collector) Run(stopCh <-chan struct{}) error {
 			os.Exit(1)
 			return
 		}
-		ic := NewPerformanceCollector(&c.statesInformer, &c.metricCache, c.config.CollectInterferenceTimeWindowSeconds)
+		ic := NewPerformanceCollector(c.statesInformer, c.metricCache, c.config.CollectInterferenceTimeWindowSeconds)
 		ic.collectContainerMetrics()
 		ic.collectPodMetrics()
 	}, []featuregate.Feature{features.PerformanceCollector}, c.config.CollectInterferenceIntervalSeconds, stopCh)

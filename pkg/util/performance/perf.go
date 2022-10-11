@@ -74,7 +74,7 @@ func (c *perfCollector) startAndCollect() (result collectResult, err error) {
 		for _, cpu := range c.cpus {
 			// todo: c.swProfile, etc.
 			profile, err := c.hwProfileOnSingleCPU(cpu)
-			if err != nil {
+			if profile == nil {
 				return result, err
 			}
 			// skip not counted cases
