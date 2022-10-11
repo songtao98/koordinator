@@ -94,6 +94,11 @@ func GetPodCgroupCPUStatPath(podParentDir string) string {
 	return system.GetCgroupFilePath(podPath, system.CPUStat)
 }
 
+func GetPodCgroupCPUAcctPressurePath(podParentDir string) string {
+	podPath := GetPodCgroupDirWithKube(podParentDir)
+	return path.Join(system.Conf.CgroupRootDir, "cpuacct/", podPath)
+}
+
 func GetKubeQosClass(pod *corev1.Pod) corev1.PodQOSClass {
 	qosClass := pod.Status.QOSClass
 	if len(qosClass) <= 0 {

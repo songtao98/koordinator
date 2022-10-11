@@ -1375,7 +1375,7 @@ func Test_metricCache_InterferenceMetric_CRUD(t *testing.T) {
 	}{
 		// test CPI CRUD
 		{
-			name: "interference-metric-latest-crud",
+			name: "cpi-latest-crud",
 			args: args{
 				config: &Config{
 					MetricGCIntervalSeconds: 60,
@@ -1437,6 +1437,192 @@ func Test_metricCache_InterferenceMetric_CRUD(t *testing.T) {
 					MetricValue: &CPIMetric{
 						Cycles:       5,
 						Instructions: 5,
+					},
+				},
+				QueryResult: QueryResult{AggregateInfo: &AggregateInfo{MetricsCount: 2}},
+			},
+		},
+		// test container PSI CRUD
+		{
+			name: "container-psi-latest-crud",
+			args: args{
+				config: &Config{
+					MetricGCIntervalSeconds: 60,
+					MetricExpireSeconds:     60,
+				},
+				metricName:   MetricNameContainerPSI,
+				objectID:     "container-uid-1",
+				aggregateArg: AggregationTypeLast,
+				samples: map[time.Time]InterferenceMetric{
+					now.Add(-time.Second * 120): {
+						MetricName: MetricNameContainerPSI,
+						ObjectID:   "container-uid-1",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 7,
+							SomeMemAvg10: 7,
+							SomeIOAvg10:  7,
+							FullCPUAvg10: 7,
+							FullMemAvg10: 7,
+							FullIOAvg10:  7,
+						},
+					},
+					now.Add(-time.Second * 10): {
+						MetricName: MetricNameContainerPSI,
+						ObjectID:   "container-uid-1",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 6,
+							SomeMemAvg10: 6,
+							SomeIOAvg10:  6,
+							FullCPUAvg10: 6,
+							FullMemAvg10: 6,
+							FullIOAvg10:  6,
+						},
+					},
+					now.Add(-time.Second * 5): {
+						MetricName: MetricNameContainerPSI,
+						ObjectID:   "container-uid-1",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 5,
+							SomeMemAvg10: 5,
+							SomeIOAvg10:  5,
+							FullCPUAvg10: 5,
+							FullMemAvg10: 5,
+							FullIOAvg10:  5,
+						},
+					},
+					now.Add(-time.Second * 4): {
+						MetricName: MetricNameContainerPSI,
+						ObjectID:   "container-uid-2",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 4,
+							SomeMemAvg10: 4,
+							SomeIOAvg10:  4,
+							FullCPUAvg10: 4,
+							FullMemAvg10: 4,
+							FullIOAvg10:  4,
+						},
+					},
+				},
+			},
+			want: InterferenceQueryResult{
+				Metric: &InterferenceMetric{
+					MetricName: MetricNameContainerPSI,
+					ObjectID:   "container-uid-1",
+					MetricValue: &PSIMetric{
+						SomeCPUAvg10: 5,
+						SomeMemAvg10: 5,
+						SomeIOAvg10:  5,
+						FullCPUAvg10: 5,
+						FullMemAvg10: 5,
+						FullIOAvg10:  5,
+					},
+				},
+				QueryResult: QueryResult{AggregateInfo: &AggregateInfo{MetricsCount: 3}},
+			},
+			wantAfterDelete: InterferenceQueryResult{
+				Metric: &InterferenceMetric{
+					MetricName: MetricNameContainerPSI,
+					ObjectID:   "container-uid-1",
+					MetricValue: &PSIMetric{
+						SomeCPUAvg10: 5,
+						SomeMemAvg10: 5,
+						SomeIOAvg10:  5,
+						FullCPUAvg10: 5,
+						FullMemAvg10: 5,
+						FullIOAvg10:  5,
+					},
+				},
+				QueryResult: QueryResult{AggregateInfo: &AggregateInfo{MetricsCount: 2}},
+			},
+		},
+		// test pod PSI CRUD
+		{
+			name: "pod-psi-latest-crud",
+			args: args{
+				config: &Config{
+					MetricGCIntervalSeconds: 60,
+					MetricExpireSeconds:     60,
+				},
+				metricName:   MetricNamePodPSI,
+				objectID:     "pod-uid-1",
+				aggregateArg: AggregationTypeLast,
+				samples: map[time.Time]InterferenceMetric{
+					now.Add(-time.Second * 120): {
+						MetricName: MetricNamePodPSI,
+						ObjectID:   "pod-uid-1",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 7,
+							SomeMemAvg10: 7,
+							SomeIOAvg10:  7,
+							FullCPUAvg10: 7,
+							FullMemAvg10: 7,
+							FullIOAvg10:  7,
+						},
+					},
+					now.Add(-time.Second * 10): {
+						MetricName: MetricNamePodPSI,
+						ObjectID:   "pod-uid-1",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 6,
+							SomeMemAvg10: 6,
+							SomeIOAvg10:  6,
+							FullCPUAvg10: 6,
+							FullMemAvg10: 6,
+							FullIOAvg10:  6,
+						},
+					},
+					now.Add(-time.Second * 5): {
+						MetricName: MetricNamePodPSI,
+						ObjectID:   "pod-uid-1",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 5,
+							SomeMemAvg10: 5,
+							SomeIOAvg10:  5,
+							FullCPUAvg10: 5,
+							FullMemAvg10: 5,
+							FullIOAvg10:  5,
+						},
+					},
+					now.Add(-time.Second * 4): {
+						MetricName: MetricNamePodPSI,
+						ObjectID:   "pod-uid-2",
+						MetricValue: &PSIMetric{
+							SomeCPUAvg10: 4,
+							SomeMemAvg10: 4,
+							SomeIOAvg10:  4,
+							FullCPUAvg10: 4,
+							FullMemAvg10: 4,
+							FullIOAvg10:  4,
+						},
+					},
+				},
+			},
+			want: InterferenceQueryResult{
+				Metric: &InterferenceMetric{
+					MetricName: MetricNamePodPSI,
+					ObjectID:   "pod-uid-1",
+					MetricValue: &PSIMetric{
+						SomeCPUAvg10: 5,
+						SomeMemAvg10: 5,
+						SomeIOAvg10:  5,
+						FullCPUAvg10: 5,
+						FullMemAvg10: 5,
+						FullIOAvg10:  5,
+					},
+				},
+				QueryResult: QueryResult{AggregateInfo: &AggregateInfo{MetricsCount: 3}},
+			},
+			wantAfterDelete: InterferenceQueryResult{
+				Metric: &InterferenceMetric{
+					MetricName: MetricNamePodPSI,
+					ObjectID:   "pod-uid-1",
+					MetricValue: &PSIMetric{
+						SomeCPUAvg10: 5,
+						SomeMemAvg10: 5,
+						SomeIOAvg10:  5,
+						FullCPUAvg10: 5,
+						FullMemAvg10: 5,
+						FullIOAvg10:  5,
 					},
 				},
 				QueryResult: QueryResult{AggregateInfo: &AggregateInfo{MetricsCount: 2}},

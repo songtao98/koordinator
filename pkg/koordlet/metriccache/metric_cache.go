@@ -43,7 +43,8 @@ type InterferenceMetricName string
 const (
 	MetricNameContainerCPI InterferenceMetricName = "ContainerCPI"
 	MetricNameContainerPSI InterferenceMetricName = "ContainerPSI"
-	MetricNamePodCPI       InterferenceMetricName = "PodCPI"
+
+	MetricNamePodPSI InterferenceMetricName = "PodPSI"
 )
 
 type QueryParam struct {
@@ -568,6 +569,45 @@ func aggregateInterferenceMetricByName(metricName InterferenceMetricName, metric
 			FullMemAvg10: fullMemAvg10,
 			FullIOAvg10:  fullIOAvg10,
 		}
+	case MetricNamePodPSI:
+		someCPUAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "SomeCPUAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		someMemAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "SomeMemAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		someIOAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "SomeIOAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		fullCPUAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "FullCPUAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		fullMemAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "FullMemAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		fullIOAvg10, err := aggregateFunc(metrics, AggregateParam{
+			ValueFieldName: "FullIOAvg10", TimeFieldName: "Timestamp"})
+		if err != nil {
+			return nil, err
+		}
+		metricValue = &PSIMetric{
+			SomeCPUAvg10: someCPUAvg10,
+			SomeMemAvg10: someMemAvg10,
+			SomeIOAvg10:  someIOAvg10,
+			FullCPUAvg10: fullCPUAvg10,
+			FullMemAvg10: fullMemAvg10,
+			FullIOAvg10:  fullIOAvg10,
+		}
 	default:
 		return nil, fmt.Errorf("get unknown metric name")
 	}
@@ -759,6 +799,9 @@ func (m *metricCache) recycleDB() {
 	if err := m.db.DeleteContainerPSIMetric(&oldTime, &expiredTime); err != nil {
 		klog.Warningf("DeleteContainerPSIMetric failed during recycle, error %v", err)
 	}
+	if err := m.db.DeletePodPSIMetric(&oldTime, &expiredTime); err != nil {
+		klog.Warningf("DeletePodPSIMetric failed during recycle, error %v", err)
+	}
 	// raw records do not need to cleanup
 	klog.Infof("expired metric data before %v has been recycled", expiredTime)
 }
@@ -820,6 +863,18 @@ func (m *metricCache) convertAndInsertInterferenceMetric(t time.Time, metric *In
 			Timestamp:    t,
 		}
 		return m.db.InsertContainerPSIMetric(dbItem)
+	case MetricNamePodPSI:
+		dbItem := &podPSIMetric{
+			PodUID:       metric.ObjectID,
+			SomeCPUAvg10: metric.MetricValue.(*PSIMetric).SomeCPUAvg10,
+			SomeMemAvg10: metric.MetricValue.(*PSIMetric).SomeMemAvg10,
+			SomeIOAvg10:  metric.MetricValue.(*PSIMetric).SomeIOAvg10,
+			FullCPUAvg10: metric.MetricValue.(*PSIMetric).FullCPUAvg10,
+			FullMemAvg10: metric.MetricValue.(*PSIMetric).FullMemAvg10,
+			FullIOAvg10:  metric.MetricValue.(*PSIMetric).FullIOAvg10,
+			Timestamp:    t,
+		}
+		return m.db.InsertPodPSIMetric(dbItem)
 	default:
 		return fmt.Errorf("get unknown metric name")
 	}
@@ -831,6 +886,8 @@ func (m *metricCache) convertAndGetInterferenceMetric(metricName InterferenceMet
 		return m.db.GetContainerCPIMetric(objectID, start, end)
 	case MetricNameContainerPSI:
 		return m.db.GetContainerPSIMetric(objectID, start, end)
+	case MetricNamePodPSI:
+		return m.db.GetPodPSIMetric(objectID, start, end)
 	default:
 		return nil, fmt.Errorf("get unknown metric name")
 	}

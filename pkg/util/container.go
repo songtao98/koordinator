@@ -81,30 +81,6 @@ func GetContainerCgroupCPUAcctPressurePath(podParentDir string, c *corev1.Contai
 	return path.Join(system.Conf.CgroupRootDir, "cpuacct/", containerPath), nil
 }
 
-func GetContainerCgroupCPUAcctCPUPressurePath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
-	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
-	if err != nil {
-		return "", err
-	}
-	return system.GetCgroupFilePath(containerPath, system.CpuacctCPUPressure), nil
-}
-
-func GetContainerCgroupCPUAcctMemPressurePath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
-	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
-	if err != nil {
-		return "", err
-	}
-	return system.GetCgroupFilePath(containerPath, system.CpuacctMemPressure), nil
-}
-
-func GetContainerCgroupCPUAcctIOPressurePath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
-	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
-	if err != nil {
-		return "", err
-	}
-	return system.GetCgroupFilePath(containerPath, system.CpuacctIOPressure), nil
-}
-
 func GetContainerCgroupMemStatPath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
 	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
 	if err != nil {
