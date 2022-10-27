@@ -20,11 +20,10 @@ import (
 	"fmt"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
 	mockmetriccache "github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache/mockmetriccache"
@@ -64,7 +63,7 @@ func TestNewPerformanceCollector(t *testing.T) {
 	}
 }
 
-func Test_collectContainerCPI(t *testing.T) {
+func Test_collectContainerMetrics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -76,11 +75,11 @@ func Test_collectContainerCPI(t *testing.T) {
 
 	c := NewPerformanceCollector(mockStatesInformer, mockMetricCache, 1)
 	assert.NotPanics(t, func() {
-		c.collectContainerCPI()
+		c.collectContainerMetrics()
 	})
 }
 
-func Test_collectContainerCPI_cpuInfoErr(t *testing.T) {
+func Test_collectContainerMetrics_cpuInfoErr(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -92,11 +91,11 @@ func Test_collectContainerCPI_cpuInfoErr(t *testing.T) {
 
 	c := NewPerformanceCollector(mockStatesInformer, mockMetricCache, 1)
 	assert.NotPanics(t, func() {
-		c.collectContainerCPI()
+		c.collectContainerMetrics()
 	})
 }
 
-func Test_collectContainerCPI_mockPod(t *testing.T) {
+func Test_collectContainerMetrics_mockPod(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -110,7 +109,7 @@ func Test_collectContainerCPI_mockPod(t *testing.T) {
 
 	c := NewPerformanceCollector(mockStatesInformer, mockMetricCache, 1)
 	assert.NotPanics(t, func() {
-		c.collectContainerCPI()
+		c.collectContainerMetrics()
 	})
 }
 

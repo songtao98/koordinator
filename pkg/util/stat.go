@@ -131,3 +131,27 @@ func getContainerCgroupFd(podCgroupDir string, c *corev1.ContainerStatus) (int, 
 	}
 	return int(f.Fd()), nil
 }
+
+func GetPodPSI(podCgroupDir string) (map[string]float64, error) {
+	containerPressurePath := GetPodCgroupCPUAcctPressurePath(podCgroupDir)
+	psiMap, err := perf.ReadPSI(containerPressurePath)
+	if err != nil {
+		return nil, err
+	}
+	return psiMap, nil
+}
+
+// GetContainerPSI
+// todo: due to different os, pressurePath and pressure file name can be different
+// need to make it configurable
+func GetContainerPSI(podCgroupDir string, c *corev1.ContainerStatus) (map[string]float64, error) {
+	containerPressurePath, err := GetContainerCgroupCPUAcctPressurePath(podCgroupDir, c)
+	if err != nil {
+		return nil, err
+	}
+	psiMap, err := perf.ReadPSI(containerPressurePath)
+	if err != nil {
+		return nil, err
+	}
+	return psiMap, nil
+}

@@ -339,6 +339,14 @@ func Test_GetPodCgroupStatPath(t *testing.T) {
 				return GetPodCgroupCPUStatPath(p)
 			},
 		},
+		{
+			name:         "pressure",
+			relativePath: "pod1",
+			path:         "/host-cgroup/cpuacct/kubepods.slice/pod1",
+			fn: func(p string) string {
+				return GetPodCgroupCPUAcctPressurePath(p)
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -157,7 +157,8 @@ func (c *collector) Run(stopCh <-chan struct{}) error {
 			klog.Fatalf("timed out waiting for meta service caches to sync")
 			return
 		}
-		ic.collectContainerCPI()
+		ic.collectContainerMetrics()
+		ic.collectPodMetrics()
 	}, []featuregate.Feature{features.PerformanceCollector}, c.config.PerformanceCollectorIntervalSeconds, stopCh)
 
 	go wait.Until(c.cleanupContext, cleanupInterval, stopCh)
