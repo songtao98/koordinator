@@ -78,6 +78,7 @@ func GetContainerCgroupCPUAcctPressurePath(podParentDir string, c *corev1.Contai
 	if err != nil {
 		return "", err
 	}
+	// psi file saved in cpuacct for cgroup v1 file system
 	return path.Join(system.Conf.CgroupRootDir, "cpuacct/", containerPath), nil
 }
 

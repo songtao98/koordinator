@@ -42,11 +42,39 @@ var (
 		Help:      "Number of cores suppress by koordlet",
 	}, []string{NodeKey, BESuppressTypeKey})
 
+	ContainerCPI = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: KoordletSubsystem,
+		Name:      "container_cpi",
+		Help:      "Container cpi collected by koordlet",
+	}, []string{NodeKey, ContainerID, PodUID})
+
+	PodCPI = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: KoordletSubsystem,
+		Name:      "pod_cpi",
+		Help:      "Pod cpi collected by koordlet",
+	}, []string{NodeKey, PodUID})
+
+	ContainerPSI = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: KoordletSubsystem,
+		Name:      "container_psi",
+		Help:      "Container psi collected by koordlet",
+	}, []string{NodeKey, ContainerID, PodUID, PSIStatisticType, PSIResourceType})
+
+	PodPSI = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Subsystem: KoordletSubsystem,
+		Name:      "pod_psi",
+		Help:      "Pod psi collected by koordlet",
+	}, []string{NodeKey, PodUID, PSIStatisticType, PSIResourceType})
+
 	CommonCollectors = []prometheus.Collector{
 		KoordletStartTime,
 		CollectNodeCPUInfoStatus,
 		PodEviction,
 		BESuppressCPU,
+		ContainerCPI,
+		PodCPI,
+		ContainerPSI,
+		PodPSI,
 	}
 )
 
@@ -85,4 +113,46 @@ func RecordBESuppressCores(suppressType string, value float64) {
 	}
 	labels[BESuppressTypeKey] = suppressType
 	BESuppressCPU.With(labels).Set(value)
+}
+
+func RecordContainerCPI(containerID, podUID string, value float64) {
+	labels := genNodeLabels()
+	if labels == nil {
+		return
+	}
+	labels[ContainerID] = containerID
+	labels[PodUID] = podUID
+	ContainerCPI.With(labels).Set(value)
+}
+
+func RecordPodCPI(podUID string, value float64) {
+	labels := genNodeLabels()
+	if labels == nil {
+		return
+	}
+	labels[PodUID] = podUID
+	PodCPI.With(labels).Set(value)
+}
+
+func RecordContainerPSI(containerID, podUID, statisticType, resourceType string, value float64) {
+	labels := genNodeLabels()
+	if labels == nil {
+		return
+	}
+	labels[ContainerID] = containerID
+	labels[PodUID] = podUID
+	labels[PSIStatisticType] = statisticType
+	labels[PSIResourceType] = resourceType
+	ContainerPSI.With(labels).Set(value)
+}
+
+func RecordPodPSI(podUID, statisticType, resourceType string, value float64) {
+	labels := genNodeLabels()
+	if labels == nil {
+		return
+	}
+	labels[PodUID] = podUID
+	labels[PSIStatisticType] = statisticType
+	labels[PSIResourceType] = resourceType
+	PodPSI.With(labels).Set(value)
 }

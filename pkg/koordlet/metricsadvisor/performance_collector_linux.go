@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sys/unix"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/koordinator-sh/koordinator/pkg/koordlet/metriccache"
+	"github.com/koordinator-sh/koordinator/pkg/koordlet/metrics"
 	"github.com/koordinator-sh/koordinator/pkg/koordlet/statesinformer"
 	"github.com/koordinator-sh/koordinator/pkg/util"
 	"github.com/koordinator-sh/koordinator/pkg/util/perf"
@@ -96,10 +96,15 @@ func (c *performanceCollector) collectContainerMetrics() {
 			if !ok {
 				return
 			}
-			c.profilePerfOnSingleContainer(status, oneCollector.(*perf.PerfCollector), podUid)
-			err1 := unix.Close(oneCollector.(*perf.PerfCollector).CgroupFd)
+			perfCollector, ok := oneCollector.(*perf.PerfCollector)
+			if !ok {
+				klog.Errorf("PerfCollector type convert failed")
+				return
+			}
+			c.profilePerfOnSingleContainer(status, perfCollector, podUid)
+			err1 := perfCollector.CleanUp()
 			if err1 != nil {
-				klog.Errorf("close CgroupFd %v, err : %v", oneCollector.(*perf.PerfCollector).CgroupFd, err1)
+				klog.Errorf("PerfCollector cleanup err : %v", err1)
 			}
 			// collect container psi
 			c.collectSingleContainerPSI(parentDir, status, podUid)
@@ -139,6 +144,11 @@ func (c *performanceCollector) profilePerfOnSingleContainer(containerStatus *cor
 	if err != nil {
 		klog.Errorf("insert container cpi metrics failed, err %v", err)
 	}
+	if instructions > 0 {
+		metrics.RecordContainerCPI(containerStatus.ContainerID, podUid, float64(cycles)/float64(instructions))
+	} else {
+		metrics.RecordContainerCPI(containerStatus.ContainerID, podUid, 0)
+	}
 }
 
 func (c *performanceCollector) collectSingleContainerPSI(podParentCgroupDir string, containerStatus *corev1.ContainerStatus, podUid string) {
@@ -165,6 +175,12 @@ func (c *performanceCollector) collectSingleContainerPSI(podParentCgroupDir stri
 	if err != nil {
 		klog.Errorf("insert container psi metrics failed, err %v", err)
 	}
+	metrics.RecordContainerPSI(containerStatus.ContainerID, podUid, "some", "cpu", psiMap["SomeCPUAvg10"])
+	metrics.RecordContainerPSI(containerStatus.ContainerID, podUid, "some", "mem", psiMap["SomeMemAvg10"])
+	metrics.RecordContainerPSI(containerStatus.ContainerID, podUid, "some", "io", psiMap["SomeIOAvg10"])
+	metrics.RecordContainerPSI(containerStatus.ContainerID, podUid, "full", "cpu", psiMap["FullCPUAvg10"])
+	metrics.RecordContainerPSI(containerStatus.ContainerID, podUid, "full", "mem", psiMap["FullMemAvg10"])
+	metrics.RecordContainerPSI(containerStatus.ContainerID, podUid, "full", "io", psiMap["FullIOAvg10"])
 }
 
 func (c *performanceCollector) collectPodMetrics() {
@@ -178,6 +194,7 @@ func (c *performanceCollector) collectPodMetrics() {
 		podCgroupDir := meta.CgroupDir
 		go func(pod *corev1.Pod, podCgroupDir string) {
 			defer wg.Done()
+			c.collectSinglePodCPI(string(pod.UID))
 			c.collectSinglePodPSI(pod, podCgroupDir)
 		}(pod, podCgroupDir)
 	}
@@ -208,5 +225,36 @@ func (c *performanceCollector) collectSinglePodPSI(pod *corev1.Pod, podCgroupDir
 	err = c.metricCache.InsertPodInterferenceMetrics(collectTime, containerPsiMetric)
 	if err != nil {
 		klog.Errorf("insert pod psi metrics failed, err %v", err)
+	}
+	metrics.RecordPodPSI(string(pod.UID), "some", "cpu", psiMap["SomeCPUAvg10"])
+	metrics.RecordPodPSI(string(pod.UID), "some", "mem", psiMap["SomeMemAvg10"])
+	metrics.RecordPodPSI(string(pod.UID), "some", "io", psiMap["SomeIOAvg10"])
+	metrics.RecordPodPSI(string(pod.UID), "full", "cpu", psiMap["FullCPUAvg10"])
+	metrics.RecordPodPSI(string(pod.UID), "full", "mem", psiMap["FullMemAvg10"])
+	metrics.RecordPodPSI(string(pod.UID), "full", "io", psiMap["FullIOAvg10"])
+}
+
+func (c *performanceCollector) collectSinglePodCPI(podUid string) {
+	collectTime := time.Now()
+	startTime := collectTime.Add(-time.Duration(300) * time.Second)
+	params := &metriccache.QueryParam{
+		Aggregate: metriccache.AggregationTypeLast,
+		Start:     &startTime,
+		End:       &collectTime,
+	}
+	podCPIQueryResult := c.metricCache.GetPodInterferenceMetric(metriccache.MetricNamePodCPI, &podUid, params)
+	if podCPIQueryResult.QueryResult.Error != nil {
+		klog.Errorf("get pod cpi failed, error %v", podCPIQueryResult.Error)
+		return
+	}
+	if podCPIQueryResult.Metric == nil {
+		klog.Errorf("pod cpi metric not exist")
+		return
+	}
+	podCPI := podCPIQueryResult.Metric.MetricValue.(*metriccache.CPIMetric)
+	if podCPI.Instructions > 0 {
+		metrics.RecordPodCPI(podUid, float64(podCPI.Cycles)/float64(podCPI.Instructions))
+	} else {
+		metrics.RecordPodCPI(podUid, 0)
 	}
 }

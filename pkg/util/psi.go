@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package perf
+package util
 
 import (
 	"bufio"
@@ -24,6 +24,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"k8s.io/klog/v2"
 )
 
 const psiLineFormat = "avg10=%f avg60=%f avg300=%f total=%d"
@@ -41,6 +43,11 @@ type PSIStats struct {
 }
 
 func ReadPSI(pressurePath string) (map[string]float64, error) {
+	defer func() {
+		if e := recover(); e != nil {
+			klog.Warningf("ReadPSI panic: %v, filePath: %s", e, pressurePath)
+		}
+	}()
 	result := map[string]float64{}
 	cpuPressure, err := os.ReadFile(path.Join(pressurePath, "/cpu.pressure"))
 	if err != nil {
@@ -75,6 +82,8 @@ func ReadPSI(pressurePath string) (map[string]float64, error) {
 	}
 	result["SomeIOAvg10"] = (*ioStats.Some).Avg10
 	result["FullIOAvg10"] = (*ioStats.Full).Avg10
+
+	klog.V(4).Infof("Pressure file contents from : %s, cpu %s, mem %s, io %s", pressurePath, string(cpuPressure), string(memPressure), string(ioPressure))
 	return result, nil
 }
 

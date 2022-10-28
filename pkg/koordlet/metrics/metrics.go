@@ -39,6 +39,11 @@ const (
 
 	EvictionReasonKey = "reason"
 	BESuppressTypeKey = "type"
+
+	ContainerID      = "cid"
+	PodUID           = "pid"
+	PSIStatisticType = "psi_statistic_type"
+	PSIResourceType  = "psi_resource_type"
 )
 
 var (
