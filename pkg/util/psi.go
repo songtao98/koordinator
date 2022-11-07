@@ -111,7 +111,7 @@ func parsePSIStats(r io.Reader) (PSIStats, error) {
 			}
 			psiStats.Full = &psi
 		default:
-			continue
+			return PSIStats{}, fmt.Errorf("parsePSIStats failed with wrong prefix")
 		}
 	}
 
