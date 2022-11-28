@@ -79,6 +79,11 @@ func readCPUAcctUsage(usagePath string) (uint64, error) {
 	return r, nil
 }
 
+func readCPUAcctWaitLatency(usagePath string) (uint64, error) {
+	// todo
+	return 0, nil
+}
+
 // GetPodCPUUsage returns the pod's CPU usage in nanosecond
 func GetPodCPUUsageNanoseconds(podCgroupDir string) (uint64, error) {
 	podStatPath := GetPodCgroupCPUAcctProcUsagePath(podCgroupDir)

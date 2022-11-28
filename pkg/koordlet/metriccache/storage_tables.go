@@ -149,3 +149,11 @@ type rawRecord struct {
 	RecordType string `gorm:"primarykey"`
 	RecordStr  string
 }
+
+type containerCPUScheduleLatency struct {
+	ID          uint64 `gorm:"primarykey"`
+	PodUID      string `gorm:"index:idx_container_csl_poduid"`
+	ContainerID string `gorm:"index:idx_container_csl_containerid"`
+	Latency     float64
+	Timestamp   time.Time
+}

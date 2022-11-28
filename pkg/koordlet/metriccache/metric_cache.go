@@ -41,11 +41,13 @@ const (
 type InterferenceMetricName string
 
 const (
-	MetricNameContainerCPI InterferenceMetricName = "ContainerCPI"
-	MetricNameContainerPSI InterferenceMetricName = "ContainerPSI"
+	MetricNameContainerCPI                InterferenceMetricName = "ContainerCPI"
+	MetricNameContainerPSI                InterferenceMetricName = "ContainerPSI"
+	MetricNameContainerCPUScheduleLatency InterferenceMetricName = "ContainerSchLat"
 
-	MetricNamePodCPI InterferenceMetricName = "PodCPI"
-	MetricNamePodPSI InterferenceMetricName = "PodPSI"
+	MetricNamePodCPI                InterferenceMetricName = "PodCPI"
+	MetricNamePodPSI                InterferenceMetricName = "PodPSI"
+	MetricNamePodCPUScheduleLatency InterferenceMetricName = "PodSchLat"
 )
 
 type QueryParam struct {

@@ -177,6 +177,17 @@ func (c *collector) Run(stopCh <-chan struct{}) error {
 		ic.collectPodPSI()
 	}, []featuregate.Feature{features.PSICollector}, c.config.PSICollectorIntervalSeconds, stopCh)
 
+	util.RunFeature(func() {
+		// add sync metaService cache check before collect pod information
+		// because collect function will get all pods.
+		if !cache.WaitForCacheSync(stopCh, c.statesInformer.HasSynced) {
+			// Koordlet exit because of metaService sync failed.
+			klog.Fatalf("timed out waiting for meta service caches to sync")
+			return
+		}
+		//todo: collect CPU schedule latency here
+	}, []featuregate.Feature{}, c.config.PerformanceCollectorIntervalSeconds, stopCh) // todo: need to change feature gate and interval seconds here
+
 	go wait.Until(c.cleanupContext, cleanupInterval, stopCh)
 
 	klog.Info("Starting successfully")

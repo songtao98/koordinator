@@ -127,6 +127,15 @@ func GetContainerCgroupCPUAcctPSIPath(podParentDir string, c *corev1.ContainerSt
 	}, nil
 }
 
+func GetContainerCgroupCPUAcctWaitLatencyPath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
+	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
+	if err != nil {
+		return "", err
+	}
+	// todo: you need to define system.CpuacctWaitLatency File and change it below
+	return system.GetCgroupFilePath(containerPath, system.CpuacctUsage), nil
+}
+
 func GetContainerCgroupMemStatPath(podParentDir string, c *corev1.ContainerStatus) (string, error) {
 	containerPath, err := GetContainerCgroupPathWithKube(podParentDir, c)
 	if err != nil {

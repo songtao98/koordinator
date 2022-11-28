@@ -247,3 +247,29 @@ func (c *performanceCollector) collectSinglePodPSI(pod *corev1.Pod, podCgroupDir
 	}
 	metrics.RecordPodPSI(pod, podPSI)
 }
+
+func (c *performanceCollector) collectContainerCPUScheduleLatency() {
+	// todo: implement collect container dimension CPU schedule latency logic here
+	// notice that you may need to open waitgroup(go routines) to collect each cgroup asynchronously
+	// you can refer to CPI collector's code
+}
+
+func (c *performanceCollector) collectSingleContainerCPUScheduleLatency() {
+	// todo: implement collect singel container dimension CPU schedule latency logic here
+	// you can refer to CPI collector's code
+
+	// you may better implement read CPU schedule latency file functions in util package
+	// when you implement the util function, you may need to get the target cgroup file by some helper functions
+
+	// core logic as below:
+	// 1. get cpu schedule latency value from cpuacct.wait_latency file's total field
+	// 2. insert it into metric cache
+
+	// NOTICE!!!!
+	// the logic about metric cache is really complicated,
+	// basically we use metriccache.ContainerInterferenceMetric to offer upper layer a unified interface
+	// we use MetricName field to distinguish different Metrics
+	// and MetricValue field is a interface type, you need to define a specific struct for schedule latency
+	// and DB crud functions will use other struct instead for dbItem, thus you need to extend convertAndXXX function
+	// with more switch case branches
+}

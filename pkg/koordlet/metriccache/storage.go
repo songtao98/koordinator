@@ -42,7 +42,7 @@ func newStorage(dsn string) (*storage, error) {
 	db.AutoMigrate(&nodeResourceMetric{}, &podResourceMetric{}, &containerResourceMetric{}, &beCPUResourceMetric{})
 	db.AutoMigrate(&rawRecord{})
 	db.AutoMigrate(&podThrottledMetric{}, &containerThrottledMetric{})
-	db.AutoMigrate(&containerCPIMetric{}, &containerPSIMetric{}, &podPSIMetric{})
+	db.AutoMigrate(&containerCPIMetric{}, &containerPSIMetric{}, &podPSIMetric{}, &containerCPUScheduleLatency{})
 
 	database, err := db.DB()
 	if err != nil {
@@ -247,3 +247,5 @@ func (s *storage) CountContainerThrottledMetric() (int64, error) {
 	err := s.db.Model(&containerThrottledMetric{}).Count(&count).Error
 	return count, err
 }
+
+// todo: implement CRUD functions for containerCPUScheduleLatency{}
